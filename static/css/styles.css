@@ -1,0 +1,48 @@
+/* Custom Styles (styles.css) */
+
+/* Sidebar */
+#sidebar {
+    height: 100vh;
+    top: 0;
+    left: 0;
+    padding-top: 50px;
+    position: fixed;
+}
+
+/* Sidebar items */
+.nav-link {
+    padding: 12px 15px;
+    color: #5a5a5a;
+    font-size: 16px;
+}
+
+/* Hover effect for links */
+.nav-link:hover {
+    color: #007bff;
+    background-color: #f1f1f1;
+}
+
+/* Active link */
+.nav-link.active {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Main content */
+main {
+    margin-left: 250px; /* Adjust this based on sidebar width */
+    padding: 20px;
+}
+
+/* Media Query for mobile responsiveness */
+@media (max-width: 768px) {
+    #sidebar {
+        position: relative;
+        height: auto;
+        padding-top: 20px;
+    }
+
+    main {
+        margin-left: 0;
+    }
+}
