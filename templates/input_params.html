@@ -1,16 +1,212 @@
 {% extends "layout.html" %}
 
 {% block content %}
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <h2>Enter Parameters</h2>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-12">
+                <h2 class="text-center mb-4">Enter Patient Information for Prediction</h2>
+                {% with messages = get_flashed_messages() %}
+ 
+                {% if messages %}
             
-            <form action="post">
-                <label for="test">test</label>
-                <input type="text" name="test" id="1">
-            </form>
+                {% for message in messages %}
             
-            <button type="submit" class="btn btn-primary btn-lg">Predict</button>
+                <div class="alert alert-danger alert-dismissable show fade" role="alert">
+                    {{ message }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="close">
+                        <span aria-hidden="true">x</span>
+                    </button> 
+                </div>
+                
+                
+            
+                {% endfor  %}
+            
+                {% endif %}
+            
+                {% endwith %}
+                <form method="POST" action="{{ url_for('main.input_params') }}" class="needs-validation" novalidate>
+                    {{ form.csrf_token }}
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Left Column (7 fields) -->
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="age">Age:</label>
+                                        {{ form.age(class="form-control", id="age", required=True) }}
+                                        {% if form.age.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.age.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="sex">Sex:</label>
+                                        {{ form.sex(class="form-control", id="sex", required=True) }}
+                                        {% if form.sex.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.sex.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="chest_pain_type">Chest Pain Type:</label>
+                                        {{ form.chest_pain_type(class="form-control", id="chest_pain_type", required=True) }}
+                                        {% if form.chest_pain_type.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.chest_pain_type.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="resting_blood_pressure">Resting Blood Pressure (mm Hg):</label>
+                                        {{ form.resting_blood_pressure(class="form-control", id="resting_blood_pressure", required=True) }}
+                                        {% if form.resting_blood_pressure.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.resting_blood_pressure.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="serum_cholesterol">Serum Cholesterol (mg/dl):</label>
+                                        {{ form.serum_cholesterol(class="form-control", id="serum_cholesterol", required=True) }}
+                                        {% if form.serum_cholesterol.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.serum_cholesterol.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="fasting_blood_sugar">Fasting Blood Sugar > 120 mg/dl:</label>
+                                        {{ form.fasting_blood_sugar(class="form-control", id="fasting_blood_sugar", required=True) }}
+                                        {% if form.fasting_blood_sugar.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.fasting_blood_sugar.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="resting_electrocardiographic">Resting Electrocardiographic Results:</label>
+                                        {{ form.resting_electrocardiographic(class="form-control", id="resting_electrocardiographic", required=True) }}
+                                        {% if form.resting_electrocardiographic.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.resting_electrocardiographic.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                
+                                <!-- Right Column (6 fields) -->
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="max_heart_rate">Maximum Heart Rate Achieved:</label>
+                                        {{ form.max_heart_rate(class="form-control", id="max_heart_rate", required=True) }}
+                                        {% if form.max_heart_rate.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.max_heart_rate.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="exercise_induced_angina">Exercise Induced Angina:</label>
+                                        {{ form.exercise_induced_angina(class="form-control", id="exercise_induced_angina", required=True) }}
+                                        {% if form.exercise_induced_angina.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.exercise_induced_angina.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="oldpeak">Oldpeak (ST Depression Induced by Exercise):</label>
+                                        {{ form.oldpeak(class="form-control", id="oldpeak", required=True) }}
+                                        {% if form.oldpeak.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.oldpeak.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="slope_of_peak_st_segment">Slope of Peak Exercise ST Segment:</label>
+                                        {{ form.slope_of_peak_st_segment(class="form-control", id="slope_of_peak_st_segment", required=True) }}
+                                        {% if form.slope_of_peak_st_segment.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.slope_of_peak_st_segment.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="num_major_vessels">Number of Major Vessels (0-3):</label>
+                                        {{ form.num_major_vessels(class="form-control", id="num_major_vessels", required=True) }}
+                                        {% if form.num_major_vessels.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.num_major_vessels.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                
+                                    <div class="form-group">
+                                        <label for="thal">Thalassemia:</label>
+                                        {{ form.thal(class="form-control", id="thal", required=True) }}
+                                        {% if form.thal.errors %}
+                                            <div class="invalid-feedback">
+                                                {% for error in form.thal.errors %}
+                                                    <p>{{ error }}</p>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                
+                            <button type="submit" class="btn btn-primary btn-lg btn-block mt-4">Predict</button>
+                        </div>
+                    </div>
+                </form>
+                
+
+                {% if prediction is not none %}
+                    <div class="alert alert-info mt-4 text-center" id="prediction">
+                        <h4>Prediction Result: </h4>
+                        <p>{{ 'Disease' if prediction == 1 else 'No Disease' }}</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
+    <script src="{{ url_for('static', filename='js/form.js') }}"></script>
 {% endblock %}

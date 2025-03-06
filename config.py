@@ -1,9 +1,11 @@
 import os
 
 class Config:
-    # Flask settings (you can add others here later)
-    SECRET_KEY = os.getenv('APP_SECRET_KEY')  # Change this to a proper secret key
+    # Flask settings
+    SECRET_KEY = os.getenv('APP_SECRET_KEY') 
     SESSION_COOKIE_NAME = 'my_session_cookie'
+    SESSION_TYPE = 'filesystem'
+    WTF_CSRF_ENABLED = True
     
     # Auth0 Settings
     AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")

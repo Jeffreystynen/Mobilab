@@ -1,9 +1,41 @@
 {% extends "layout.html" %}
 
 {% block content %}
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <h2>Dashboard</h2>           
-        </div>
+    <div class="container py-5">
+        <h2 class="text-center mb-4">Dashboard</h2>
+
+        {% if shap_image_path or prediction_values %}
+            <div class="text-center mb-4">
+                <img src="{{ url_for('static', filename='shap_plots/' + shap_image_path.split('/')[-1]) }}" class="img-fluid">
+            </div>
+
+            <div>
+                <h3 class="mb-3">Prediction Input Values</h3>
+                <table class="table table-striped table-bordered">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key, value in prediction_values.items() %}
+                            <tr>
+                                <td>{{ key|replace('_', ' ')|title }}</td>
+                                <td>{{ value }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>           
+
+        {% else %} 
+            <div class="alert alert-danger alert-dismissable show fade" role="alert">
+                <span>No prediction found, please make a prediction first to see the results and details. <a href="{{ url_for('main.input_params') }}" >Make a Prediction</a></span>
+                <button type="button" class="close" data-dismiss="alert" aria-label="close">
+                    <span aria-hidden="true">x</span>
+                </button> 
+            </div>           
+        {% endif %}
     </div>
 {% endblock %}
