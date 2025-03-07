@@ -2,18 +2,12 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
-from app import oauth
 from functools import wraps
 import requests
-import matplotlib.pyplot as plt
-import shap
-import io
-import base64
-import numpy as np
-import pandas as pd
-import tempfile
-import os
-from .form import PredictionForm 
+from .form import PredictionForm
+from .input_params import *
+from app import oauth
+
 
 main = Blueprint('main', __name__)  # Use 'main' instead of 'app'
 
@@ -66,7 +60,6 @@ def logout():
         )
     )
 
-# TODO form only validated when non default values are selected for the select boxes
 @main.route("/input", methods=["GET", "POST"])
 @login_required
 def input_params():
@@ -76,86 +69,28 @@ def input_params():
     prediction_values = None
 
     form = PredictionForm(request.form)
-    print('start')
     if request.method == "POST":
-        print("there")
         if form.validate():
-            print("here")
-            # Extract features from form input
-            features = [
-                float(form.age.data),
-                float(form.sex.data),
-                float(form.chest_pain_type.data),
-                float(form.resting_blood_pressure.data),
-                float(form.serum_cholesterol.data),
-                float(form.fasting_blood_sugar.data),
-                float(form.resting_electrocardiographic.data),
-                float(form.max_heart_rate.data),
-                float(form.exercise_induced_angina.data),
-                float(form.oldpeak.data),
-                float(form.slope_of_peak_st_segment.data),
-                float(form.num_major_vessels.data),
-                float(form.thal.data),
-            ]
-            session['prediction_values'] = {
-                'age': features[0],
-                'sex': features[1],
-                'chest_pain_type': features[2],
-                'resting_blood_pressure': features[3],
-                'serum_cholesterol': features[4],
-                'fasting_blood_sugar': features[5],
-                'resting_electrocardiographic': features[6],
-                'max_heart_rate': features[7],
-                'exercise_induced_angina': features[8],
-                'oldpeak': features[9],
-                'slope_of_peak_st_segment': features[10],
-                'num_major_vessels': features[11],
-                'thal': features[12]
-            }
-            
 
-            # Send POST request to API with features
-            api_url = "http://127.0.0.1:5001/predict"
-            response = requests.post(
-                api_url, 
-                json={"features": features}
-            )
+            features = extract_form_features(form)
+
+            session['prediction_values'] = map_features(features)
+            
+            response = get_prediction_from_api(features)
             
             if response.status_code == 200:
                 data = response.json()
                 prediction = data.get("prediction")
-                shap_values = data.get("shap_values")
-
-                # Convert SHAP values to a DataFrame
-                shap_values_list = list(shap_values.values())
-                feature_names = list(shap_values.keys())
-                
-                # Convert to numpy array
-                shap_values_array = np.array(shap_values_list).reshape(1, -1)
-
-                # Now create a DataFrame for SHAP values
-                shap_df = pd.DataFrame(shap_values_array, columns=feature_names)
-
-                # Plot SHAP summary plot
-                fig = plt.figure(figsize=(8, 6))
-                shap.summary_plot(shap_df.values, features, feature_names=feature_names, show=False)
-                shap_image_filename = "shap_plot.png"
-                shap_image_path = os.path.join("static", "shap_plots", shap_image_filename)
-
-                # Save plot as a static file in the static/shap_plots directory
-                plt.savefig(shap_image_path)
-                plt.close(fig)
-
-                # Store the SHAP plot path in the session for later use
-                session['shap_image_path'] = shap_image_path
                 session['prediction'] = prediction
+
+                shap_image_path = process_shap_values(shap_values=data.get("shap_values"), features=features)
+                
+                session['shap_image_path'] = shap_image_path
             else:
                 prediction = "Error: Unable to get prediction."
         else:
-            print("invalid")
-            print(form.errors)
-            print(form.data)
             if request.method == "POST":
+                print(form.errors)
                 flash("There were errors in the form. Please check your input.", "danger")
 
     return render_template(
@@ -173,7 +108,6 @@ def input_params():
 def dashboard():
     shap_image_path = session.get("shap_image_path", None)
     prediction_values = session.get("prediction_values", None)
-    print(prediction_values)
     return render_template(
         "dashboard.html",
         session=session.get("user"),

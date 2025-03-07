@@ -6,7 +6,11 @@
 
         {% if shap_image_path or prediction_values %}
             <div class="text-center mb-4">
-                <img src="{{ url_for('static', filename='shap_plots/' + shap_image_path.split('/')[-1]) }}" class="img-fluid">
+                {% if shap_image_path %}
+                    <img src="{{ url_for('static', filename='shap_plots/' + shap_image_path.split('/')[-1]) }}" class="img-fluid">
+                {% else %}
+                    <p>No SHAP plot available.</p>
+                {% endif %}
             </div>
 
             <div>
