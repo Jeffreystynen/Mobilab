@@ -18,4 +18,4 @@ remove_shap_plots(os.path.join('static', 'shap_plots'))
 # app.secret_key = env.get("APP_SECRET_KEY")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
