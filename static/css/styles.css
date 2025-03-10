@@ -1,7 +1,12 @@
 /* General Styling for the Body */
-body {
+html, body {
     background-color: #F5F5F5; /* Light Gray for a modern feel */
     color: #1E1E1E; /* Dark Gray for readability */
+    overscroll-behavior: none;
+}
+
+.container-fluid {
+    padding-top: 0 !important;
 }
 
 /* Heading Styles */
@@ -36,6 +41,7 @@ nav {
     padding-top: 50px;
     position: fixed;
     background-color: #005266;
+    overflow-y: auto;
 }
 
 #sidebar img {
@@ -79,6 +85,7 @@ main {
     background-color: #F4F8F9;
     border-radius: 8px;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
 }
 
 /* Navbar */

@@ -25,6 +25,7 @@ def extract_form_features(form):
             ] 
     return features
 
+
 def map_features(features):
     features_dict = {
                 'age': features[0],
@@ -43,6 +44,7 @@ def map_features(features):
             }
     return features_dict
 
+
 def get_prediction_from_api(features):
     """Sends features to API and returns a dictionary response."""
     api_url = "http://127.0.0.1:5001/predict"
@@ -52,6 +54,7 @@ def get_prediction_from_api(features):
     except requests.RequestException as e:
         print(f"API request failed: {e}")
     return None
+
 
 def process_shap_values(shap_values, features):
     # Convert SHAP values to a DataFrame
@@ -75,3 +78,31 @@ def process_shap_values(shap_values, features):
     plt.close(fig)
 
     return shap_image_path
+
+
+def process_lime_values(lime_values, prediction, feature_names):
+    # Convert the LIME values dictionary into a DataFrame
+    lime_df = pd.DataFrame(list(lime_values.items()), columns=['Feature', 'Importance'])
+    
+    # Sort by importance for better visualization
+    lime_df = lime_df.sort_values(by='Importance', ascending=False)
+
+    # Create a bar plot for the LIME values
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.barh(lime_df['Feature'], lime_df['Importance'], color='#0090A5')
+
+    # Add labels and title
+    prediction_label = "Disease" if prediction == 1 else "No Disease"
+    ax.set_xlabel('Importance')
+    ax.set_title(f'LIME Feature Importance (Prediction: {prediction_label})')
+
+    # Save the figure as a static image
+    lime_image_filename = "lime_plot.png"
+    lime_image_path = os.path.join("static", "lime_plots", lime_image_filename)
+    
+    # Save the plot to the desired path
+    plt.tight_layout()
+    fig.savefig(lime_image_path)
+    plt.close(fig)
+
+    return lime_image_path

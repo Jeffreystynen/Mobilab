@@ -190,7 +190,18 @@
                                     </div>
                                 </div>
                             </div>
-                
+                            <hr>
+                            <div class="form-group">
+                                <label for="modelSelect">Select a Model:</label>
+                                <div class="d-flex justify-content-center">
+                                    <select id="modelSelect" name="model" class="form-control col-sm-4" required>
+                                        <option value="">--Select a Model--</option>
+                                        {% for model in models %}
+                                            <option value="{{ model.name }}" {% if model.name == selected_model %}selected{% endif %}>{{ model.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
                             <button type="submit" class="btn btn-primary btn-lg btn-block mt-4">Predict</button>
                         </div>
                     </div>

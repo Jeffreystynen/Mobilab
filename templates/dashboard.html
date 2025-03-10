@@ -4,12 +4,14 @@
     <div class="container py-5">
         <h2 class="text-center mb-4">Dashboard</h2>
 
-        {% if shap_image_path or prediction_values %}
+        {% if lime_image_path or prediction_values %}
             <div class="text-center mb-4">
-                {% if shap_image_path %}
-                    <img src="{{ url_for('static', filename='shap_plots/' + shap_image_path.split('/')[-1]) }}" class="img-fluid">
+                {% if lime_image_path %}
+                    <!-- Make sure that the lime_image_path only contains the filename and not the full path -->
+                    <img src="{{ url_for('static', filename='lime_plots/' + lime_image_path.split('/')[-1]) }}" class="img-fluid" alt="LIME Plot">
                 {% else %}
-                    <p>No SHAP plot available.</p>
+                    <p>No LIME plot available.</p>
+                    <p>Image Path: {{ url_for('static', filename='lime_plots/' + lime_image_path.split('/')[-1]) }}</p>
                 {% endif %}
             </div>
 

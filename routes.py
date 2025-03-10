@@ -90,14 +90,12 @@ def models():
     selected_plots = {}
 
     if request.method == "POST":
-        # Handle model selection
         selected_model = request.form.get("model")
         
         if selected_model:
-            # When a model is selected, fetch its metrics, feature mappings, and plots
-            selected_metrics = metrics  # You can adjust this logic to get the metrics for a specific model if needed
+            selected_metrics = metrics
             selected_feature_mapping = feature_mapping
-            selected_plots = plots  # You can adjust this logic if plots are specific to each model
+            selected_plots = plots
 
     return render_template(
         "models.html",
@@ -114,8 +112,12 @@ def models():
 def input_params():
     prediction = None
     shap_values = None
-    shap_image_path = None
+    lime_image_path = None
     prediction_values = None
+
+    # Fetch list of available models
+    models_response = requests.get("http://127.0.0.1:5001/models")
+    models = models_response.json() if models_response.status_code == 200 else []
 
     form = PredictionForm(request.form)
     if request.method == "POST":
@@ -132,9 +134,11 @@ def input_params():
                 prediction = data.get("prediction")
                 session['prediction'] = prediction
 
-                shap_image_path = process_shap_values(shap_values=data.get("shap_values"), features=features)
-                
-                session['shap_image_path'] = shap_image_path
+                # shap_image_path = process_shap_values(shap_values=data.get("shap_values"), features=features)
+                # session['shap_image_path'] = shap_image_path
+                lime_image_path = process_lime_values(lime_values=data.get("lime_values"), prediction=prediction, feature_names=features)         
+                session['lime_image_path'] = lime_image_path
+                print(session['lime_image_path'])
             else:
                 prediction = "Error: Unable to get prediction."
         else:
@@ -146,7 +150,8 @@ def input_params():
         "input_params.html",
         form=form,
         prediction=prediction,
-        shap_image_path=shap_image_path,
+        lime_image_path=lime_image_path,
+        models=models,
         session=session.get("user"),
         pretty=json.dumps(session.get("user"), indent=4),
     )
@@ -155,12 +160,12 @@ def input_params():
 @main.route("/dashboard", methods=["GET", "POST"])
 @login_required
 def dashboard():
-    shap_image_path = session.get("shap_image_path", None)
+    lime_image_path = session.get("lime_image_path", None)
     prediction_values = session.get("prediction_values", None)
     return render_template(
         "dashboard.html",
         session=session.get("user"),
-        shap_image_path=shap_image_path,
+        lime_image_path=lime_image_path,
         prediction_values=prediction_values,
         pretty=json.dumps(session.get("user"), indent=4),
     )
