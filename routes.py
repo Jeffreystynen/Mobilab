@@ -5,7 +5,7 @@ from urllib.parse import quote_plus, urlencode
 from functools import wraps
 import requests
 from .form import PredictionForm
-from .input_params import *
+from .input_params_helper import *
 from app import oauth
 
 
@@ -29,9 +29,11 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
 @main.route('/')
 def index():
     return login()
+
 
 @main.route("/login")
 def login():
@@ -39,11 +41,13 @@ def login():
         redirect_uri=url_for("main.callback", _external=True)
     )
 
+
 @main.route("/callback", methods=["GET", "POST"])
 def callback():
     token = oauth.auth0.authorize_access_token()
     session["user"] = token
     return redirect(url_for("main.input_params"))
+
 
 @main.route("/logout")
 def logout():
@@ -59,6 +63,51 @@ def logout():
             quote_via=quote_plus,
         )
     )
+
+
+@main.route("/models", methods=["GET", "POST"])
+@login_required
+def models():
+    # Fetch list of available models
+    models_response = requests.get("http://127.0.0.1:5001/models")
+    models = models_response.json() if models_response.status_code == 200 else []
+
+    # Fetch feature mappings
+    feature_mapping_response = requests.get("http://127.0.0.1:5001/feature-mapping")
+    feature_mapping = feature_mapping_response.json() if feature_mapping_response.status_code == 200 else {}
+
+    # Fetch model metrics
+    metrics_response = requests.get("http://127.0.0.1:5001/metrics")
+    metrics = metrics_response.json() if metrics_response.status_code == 200 else {}
+
+    # Fetch all plots
+    plots_response = requests.get("http://127.0.0.1:5001/plots")
+    plots = plots_response.json() if plots_response.status_code == 200 else {}
+
+    selected_model = None
+    selected_metrics = {}
+    selected_feature_mapping = {}
+    selected_plots = {}
+
+    if request.method == "POST":
+        # Handle model selection
+        selected_model = request.form.get("model")
+        
+        if selected_model:
+            # When a model is selected, fetch its metrics, feature mappings, and plots
+            selected_metrics = metrics  # You can adjust this logic to get the metrics for a specific model if needed
+            selected_feature_mapping = feature_mapping
+            selected_plots = plots  # You can adjust this logic if plots are specific to each model
+
+    return render_template(
+        "models.html",
+        models=models,
+        selected_model=selected_model,
+        metrics=selected_metrics,
+        feature_mapping=selected_feature_mapping,
+        plots=selected_plots,
+    )
+
 
 @main.route("/input", methods=["GET", "POST"])
 @login_required
