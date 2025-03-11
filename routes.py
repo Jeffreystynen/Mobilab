@@ -30,6 +30,35 @@ def login_required(f):
     return decorated_function
 
 
+def requires_role(role):
+    """Custom decorator to check for user roles in the JWT token."""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            token = session.get('user', {}).get('id_token', '')
+            
+            if not token:
+                flash("You need to log in first", "danger")
+                return redirect(url_for('main.login'))
+
+            try:
+                decoded_token = json.loads(token)
+                roles = decoded_token.get('https://yourapp.com/roles', [])
+
+                if role not in roles:
+                    flash("You don't have permission to access this page.", "danger")
+                    return redirect(url_for('main.index'))
+                
+            except Exception as e:
+                flash(f"Error: {str(e)}", "danger")
+                return redirect(url_for('main.index'))
+
+            return f(*args, **kwargs)
+
+        return wrapper
+    return decorator
+
+
 @main.route('/')
 def index():
     return login()
@@ -45,6 +74,7 @@ def login():
 @main.route("/callback", methods=["GET", "POST"])
 def callback():
     token = oauth.auth0.authorize_access_token()
+    print(token)
     session["user"] = token
     return redirect(url_for("main.input_params"))
 
@@ -67,6 +97,7 @@ def logout():
 
 @main.route("/models", methods=["GET", "POST"])
 @login_required
+@requires_role('admin')
 def models():
     # Fetch list of available models
     models_response = requests.get("http://127.0.0.1:5001/models")
@@ -169,3 +200,9 @@ def dashboard():
         prediction_values=prediction_values,
         pretty=json.dumps(session.get("user"), indent=4),
     )
+
+
+# @main.route("/admin")
+# @roles_required("admin")
+# def admin_dashboard():
+#     return "Welcome, Admin!"
