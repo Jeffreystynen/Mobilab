@@ -23,10 +23,8 @@ def create_app():
     def inject_user_roles():
         roles = []
         user = session.get("user")
-        print(f"user: {user}")
         if user:
             roles = user.get("https://mobilab.demo.app.com/roles", [])
-            print(f'roles: {roles}')
         return dict(user_roles=roles)
 
     return app

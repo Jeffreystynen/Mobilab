@@ -1,4 +1,4 @@
-from .form import PredictionForm 
+from ..form import PredictionForm 
 import requests
 import numpy as np
 import pandas as pd
