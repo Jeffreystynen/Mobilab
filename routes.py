@@ -7,6 +7,7 @@ import requests
 from .form import PredictionForm
 from .input_params_helper import *
 from app import oauth
+import jwt
 
 
 main = Blueprint('main', __name__)  # Use 'main' instead of 'app'
@@ -30,33 +31,32 @@ def login_required(f):
     return decorated_function
 
 
+import jwt  # Import the PyJWT library
+from functools import wraps
+from flask import session, redirect, url_for, flash
+import json
+
 def requires_role(role):
-    """Custom decorator to check for user roles in the JWT token."""
+    """Custom decorator to check for user roles in the decoded token stored in session."""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            token = session.get('user', {}).get('id_token', '')
-            
-            if not token:
+            # Now, session['user'] is the decoded token
+            decoded_token = session.get('user', {})
+            print(f"Decoded token: {decoded_token}")
+            if not decoded_token:
                 flash("You need to log in first", "danger")
                 return redirect(url_for('main.login'))
-
-            try:
-                decoded_token = json.loads(token)
-                roles = decoded_token.get('https://yourapp.com/roles', [])
-
-                if role not in roles:
-                    flash("You don't have permission to access this page.", "danger")
-                    return redirect(url_for('main.index'))
-                
-            except Exception as e:
-                flash(f"Error: {str(e)}", "danger")
+            # Get roles from the token using your custom namespace
+            roles = decoded_token.get('https://mobilab.demo.app.com/roles', [])
+            print(f"Roles: {roles}")
+            if role not in roles:
+                flash("You don't have permission to access this page.", "danger")
                 return redirect(url_for('main.index'))
-
             return f(*args, **kwargs)
-
         return wrapper
     return decorator
+
 
 
 @main.route('/')
@@ -74,8 +74,13 @@ def login():
 @main.route("/callback", methods=["GET", "POST"])
 def callback():
     token = oauth.auth0.authorize_access_token()
-    print(token)
-    session["user"] = token
+    id_token = token.get("id_token")
+    if id_token:
+        # Decode the id_token without verifying the signature (development only!)
+        decoded_token = jwt.decode(id_token, options={"verify_signature": False})
+        session["user"] = decoded_token
+    else:
+        session["user"] = token
     return redirect(url_for("main.input_params"))
 
 
@@ -92,49 +97,6 @@ def logout():
             },
             quote_via=quote_plus,
         )
-    )
-
-
-@main.route("/models", methods=["GET", "POST"])
-@login_required
-@requires_role('admin')
-def models():
-    # Fetch list of available models
-    models_response = requests.get("http://127.0.0.1:5001/models")
-    models = models_response.json() if models_response.status_code == 200 else []
-
-    # Fetch feature mappings
-    feature_mapping_response = requests.get("http://127.0.0.1:5001/feature-mapping")
-    feature_mapping = feature_mapping_response.json() if feature_mapping_response.status_code == 200 else {}
-
-    # Fetch model metrics
-    metrics_response = requests.get("http://127.0.0.1:5001/metrics")
-    metrics = metrics_response.json() if metrics_response.status_code == 200 else {}
-
-    # Fetch all plots
-    plots_response = requests.get("http://127.0.0.1:5001/plots")
-    plots = plots_response.json() if plots_response.status_code == 200 else {}
-
-    selected_model = None
-    selected_metrics = {}
-    selected_feature_mapping = {}
-    selected_plots = {}
-
-    if request.method == "POST":
-        selected_model = request.form.get("model")
-        
-        if selected_model:
-            selected_metrics = metrics
-            selected_feature_mapping = feature_mapping
-            selected_plots = plots
-
-    return render_template(
-        "models.html",
-        models=models,
-        selected_model=selected_model,
-        metrics=selected_metrics,
-        feature_mapping=selected_feature_mapping,
-        plots=selected_plots,
     )
 
 
@@ -202,7 +164,54 @@ def dashboard():
     )
 
 
-# @main.route("/admin")
-# @roles_required("admin")
-# def admin_dashboard():
-#     return "Welcome, Admin!"
+@main.route("/models", methods=["GET", "POST"])
+@login_required
+def models():
+    # Fetch list of available models
+    models_response = requests.get("http://127.0.0.1:5001/models")
+    models = models_response.json() if models_response.status_code == 200 else []
+
+    # Fetch feature mappings
+    feature_mapping_response = requests.get("http://127.0.0.1:5001/feature-mapping")
+    feature_mapping = feature_mapping_response.json() if feature_mapping_response.status_code == 200 else {}
+
+    # Fetch model metrics
+    metrics_response = requests.get("http://127.0.0.1:5001/metrics")
+    metrics = metrics_response.json() if metrics_response.status_code == 200 else {}
+
+    # Fetch all plots
+    plots_response = requests.get("http://127.0.0.1:5001/plots")
+    plots = plots_response.json() if plots_response.status_code == 200 else {}
+
+    selected_model = None
+    selected_metrics = {}
+    selected_feature_mapping = {}
+    selected_plots = {}
+
+    if request.method == "POST":
+        selected_model = request.form.get("model")
+        
+        if selected_model:
+            selected_metrics = metrics
+            selected_feature_mapping = feature_mapping
+            selected_plots = plots
+
+    return render_template(
+        "models.html",
+        models=models,
+        selected_model=selected_model,
+        metrics=selected_metrics,
+        feature_mapping=selected_feature_mapping,
+        plots=selected_plots,
+    )
+
+
+@main.route("/admin")
+@login_required
+@requires_role('admin')
+def admin():
+    return render_template(
+        "admin.html",
+        session=session.get("user"),
+        pretty=json.dumps(session.get("user"), indent=4),
+    )
