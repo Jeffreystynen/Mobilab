@@ -43,23 +43,19 @@ def login():
 @main.route("/callback", methods=["GET", "POST"])
 def callback():
     token = oauth.auth0.authorize_access_token()
-    id_token = token.get("id_token")
     nonce = session.get("nonce")
     userinfo = oauth.auth0.parse_id_token(token, nonce=nonce)
-    print(id_token)
+    
+    # Check if the user is approved (using your custom claim)
     approved = userinfo.get("https://mobilab.demo.app.com/approved", False)
-    print(approved)
     if not approved:
         flash("Your account is pending admin approval. Please contact an administrator.", "warning")
         return redirect(url_for("main.pending_approval"))
-
-    if id_token:
-        # Decode the id_token without verifying the signature (development only!)
-        decoded_token = jwt.decode(id_token, options={"verify_signature": False})
-        session["user"] = decoded_token
-    else:
-        session["user"] = token
+    
+    # Store the decoded user info directly in the session
+    session["user"] = userinfo
     return redirect(url_for("main.input_params"))
+
 
 
 @main.route("/logout")
