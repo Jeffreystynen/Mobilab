@@ -10,6 +10,7 @@ from app import oauth
 import jwt
 from app.helpers.routes_helper import *
 from app.helpers.models_helper import *
+import secrets
 
 
 main = Blueprint('main', __name__)  # Use 'main' instead of 'app'
@@ -31,8 +32,11 @@ def index():
 
 @main.route("/login")
 def login():
+    nonce = secrets.token_urlsafe(16)
+    session["nonce"] = nonce
     return oauth.auth0.authorize_redirect(
-        redirect_uri=url_for("main.callback", _external=True)
+        redirect_uri=url_for("main.callback", _external=True),
+        nonce=nonce
     )
 
 
@@ -40,6 +44,15 @@ def login():
 def callback():
     token = oauth.auth0.authorize_access_token()
     id_token = token.get("id_token")
+    nonce = session.get("nonce")
+    userinfo = oauth.auth0.parse_id_token(token, nonce=nonce)
+    print(id_token)
+    approved = userinfo.get("https://mobilab.demo.app.com/approved", False)
+    print(approved)
+    if not approved:
+        flash("Your account is pending admin approval. Please contact an administrator.", "warning")
+        return redirect(url_for("main.pending_approval"))
+
     if id_token:
         # Decode the id_token without verifying the signature (development only!)
         decoded_token = jwt.decode(id_token, options={"verify_signature": False})
@@ -65,44 +78,59 @@ def logout():
     )
 
 
+@main.route("/pending_approval")
+def pending_approval():
+    return render_template("pending_approval.html")
+
+
 @main.route("/input", methods=["GET", "POST"])
 @login_required
 def input_params():
     prediction = None
-    shap_values = None
     lime_image_path = None
-    prediction_values = None
 
-    # Fetch list of available models
-    models_response = requests.get("http://127.0.0.1:5001/models")
-    models = models_response.json() if models_response.status_code == 200 else []
+    # Fetch list of available models from the model-serving API
+    try:
+        models_response = requests.get("http://127.0.0.1:5001/models")
+        if models_response.status_code == 200:
+            models = models_response.json()
+        else:
+            models = []
+            flash("Unable to fetch models.", "warning")
+    except Exception as e:
+        models = []
+        flash(f"Error fetching models: {str(e)}", "danger")
 
     form = PredictionForm(request.form)
     if request.method == "POST":
         if form.validate():
-
             features = extract_form_features(form)
-
             session['prediction_values'] = map_features(features)
-            
-            response = get_prediction_from_api(features)
-            
+
+            # Get the selected model from the form; default to "xgboost"
+            selected_model = request.form.get("model", "xgboost").lower()
+
+            # Send features and model parameter to the prediction API
+            response = get_prediction_from_api(features, model=selected_model)
             if response.status_code == 200:
                 data = response.json()
                 prediction = data.get("prediction")
                 session['prediction'] = prediction
 
-                # shap_image_path = process_shap_values(shap_values=data.get("shap_values"), features=features)
-                # session['shap_image_path'] = shap_image_path
-                lime_image_path = process_lime_values(lime_values=data.get("lime_values"), prediction=prediction, feature_names=features)         
+                # Process LIME values (assumed to return a base64-encoded image or file path)
+                lime_image_path = process_lime_values(
+                    lime_values=data.get("lime_values"),
+                    prediction=prediction,
+                    feature_names=features
+                )
                 session['lime_image_path'] = lime_image_path
-                print(session['lime_image_path'])
+                print("LIME image path:", session['lime_image_path'])
             else:
                 prediction = "Error: Unable to get prediction."
+                flash("Prediction API error.", "danger")
         else:
-            if request.method == "POST":
-                print(form.errors)
-                flash("There were errors in the form. Please check your input.", "danger")
+            print("Form errors:", form.errors)
+            flash("There were errors in the form. Please check your input.", "danger")
 
     return render_template(
         "input_params.html",
@@ -111,7 +139,7 @@ def input_params():
         lime_image_path=lime_image_path,
         models=models,
         session=session.get("user"),
-        pretty=json.dumps(session.get("user"), indent=4),
+        pretty=json.dumps(session.get("user"), indent=4)
     )
 
 
@@ -132,32 +160,28 @@ def dashboard():
 @main.route("/models", methods=["GET", "POST"])
 @login_required
 def models():
-    # Fetch data using helper functions
-    models = get_models()
-    feature_mapping = get_feature_mapping()
-    metrics = get_metrics()
-    plots = get_plots()
-
     selected_model = None
-    selected_metrics = {}
-    selected_feature_mapping = {}
-    selected_plots = {}
-
     if request.method == "POST":
         selected_model = request.form.get("model")
-        if selected_model:
-            selected_metrics = metrics
-            selected_feature_mapping = feature_mapping
-            selected_plots = plots
+    # If no model is selected, default to "xgboost"
+    if not selected_model:
+        flash("No model selected. Please select a model.", "danger")
+
+    # Fetch model-specific data using the selected model as a query parameter.
+    models_list = get_models()
+    feature_mapping = get_feature_mapping(selected_model)
+    metrics = get_metrics(selected_model)
+    plots = get_plots(selected_model)
 
     return render_template(
         "models.html",
-        models=models,
+        models=models_list,
         selected_model=selected_model,
-        metrics=selected_metrics,
-        feature_mapping=selected_feature_mapping,
-        plots=selected_plots,
+        metrics=metrics,
+        feature_mapping=feature_mapping,
+        plots=plots,
     )
+
 
 
 

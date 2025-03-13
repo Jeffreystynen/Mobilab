@@ -45,15 +45,11 @@ def map_features(features):
     return features_dict
 
 
-def get_prediction_from_api(features):
-    """Sends features to API and returns a dictionary response."""
-    api_url = "http://127.0.0.1:5001/predict"
-    try:
-        response = requests.post(api_url, json={"features": features})
-        return response
-    except requests.RequestException as e:
-        print(f"API request failed: {e}")
-    return None
+def get_prediction_from_api(features, model="xgboost"):
+    """Send a POST request to the prediction API with the features and model selection."""
+    url = "http://127.0.0.1:5001/predict"
+    data = {"features": features, "model": model}
+    return requests.post(url, json=data)
 
 
 def process_shap_values(shap_values, features):
