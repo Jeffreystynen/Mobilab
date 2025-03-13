@@ -9,6 +9,7 @@ class Config:
     SESSION_COOKIE_NAME = 'my_session_cookie'
     SESSION_TYPE = 'filesystem'
     WTF_CSRF_ENABLED = True
+    WTF_CSRF_SECRET_KEY = os.getenv('WTF_CSRF_SECRET_KEY')
     SECURITY_PASSWORD_SALT = os.getenv("SECURITY_PASSWORD_SALT")
     SECURITY_PASSWORD_HASH = "bcrypt"
 

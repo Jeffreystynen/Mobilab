@@ -10,6 +10,7 @@ from app import oauth
 import jwt
 from app.helpers.routes_helper import *
 from app.helpers.models_helper import *
+from app.helpers.auth0_helper import get_pending_approvals, update_user_approval, delete_user
 import secrets
 
 
@@ -179,14 +180,42 @@ def models():
     )
 
 
-
-
 @main.route("/admin")
 @login_required
 @requires_role('admin')
 def admin():
+    try:
+        pending_users = get_pending_approvals()
+    except Exception as e:
+        flash(f"Error fetching pending approvals: {str(e)}", "danger")
+        pending_users = []
     return render_template(
         "admin.html",
+        pending_users=pending_users,
         session=session.get("user"),
         pretty=json.dumps(session.get("user"), indent=4),
     )
+
+
+@main.route("/approve/<user_id>", methods=["POST"])
+@login_required
+@requires_role("admin")
+def approve_user(user_id):
+    try:
+        update_user_approval(user_id, True)
+        flash("User approved successfully.", "success")
+    except Exception as e:
+        flash(f"Error approving user: {str(e)}", "danger")
+    return redirect(url_for("main.admin"))
+
+
+@main.route("/reject/<user_id>", methods=["POST"])
+@login_required
+@requires_role("admin")
+def reject_user(user_id):
+    try:
+        delete_user(user_id)
+        flash("User rejected successfully.", "success")
+    except Exception as e:
+        flash(f"Error rejecting user: {str(e)}", "danger")
+    return redirect(url_for("main.admin"))
