@@ -14,7 +14,7 @@ from app.helpers.auth0_helper import get_pending_approvals, update_user_approval
 import secrets
 
 
-main = Blueprint('main', __name__)  # Use 'main' instead of 'app'
+main = Blueprint('main', __name__)
 
 # Register Auth0 OAuth
 auth0 = oauth.register(
@@ -28,11 +28,13 @@ auth0 = oauth.register(
 
 @main.route('/')
 def index():
+    """Serves the Auth0 login page."""
     return login()
 
 
 @main.route("/login")
 def login():
+    """Serves the Auth0 login page."""
     nonce = secrets.token_urlsafe(16)
     session["nonce"] = nonce
     return oauth.auth0.authorize_redirect(
@@ -43,11 +45,12 @@ def login():
 
 @main.route("/callback", methods=["GET", "POST"])
 def callback():
+    """Establishes access token and checks users approval status"""
     token = oauth.auth0.authorize_access_token()
     nonce = session.get("nonce")
     userinfo = oauth.auth0.parse_id_token(token, nonce=nonce)
     
-    # Check if the user is approved (using your custom claim)
+    # Check if the user is approved
     approved = userinfo.get("https://mobilab.demo.app.com/approved", False)
     if not approved:
         flash("Your account is pending admin approval. Please contact an administrator.", "warning")
@@ -61,6 +64,7 @@ def callback():
 
 @main.route("/logout")
 def logout():
+    """Handles logout with Auth0."""
     session.clear()
     return redirect(
         "https://" + env.get("AUTH0_DOMAIN")
@@ -77,12 +81,17 @@ def logout():
 
 @main.route("/pending_approval")
 def pending_approval():
+    """Users who are not approved yet get redirected to this route."""
     return render_template("pending_approval.html")
 
 
 @main.route("/input", methods=["GET", "POST"])
 @login_required
 def input_params():
+    """
+    Handles model interaction by making use of a form. Sends all form parameters to the model selected for inference,
+    default model is xgboost. Gets models prediction and LIME plot and stores them in the session.
+    """
     prediction = None
     lime_image_path = None
 
@@ -114,7 +123,7 @@ def input_params():
                 prediction = data.get("prediction")
                 session['prediction'] = prediction
 
-                # Process LIME values (assumed to return a base64-encoded image or file path)
+                # Process LIME values
                 lime_image_path = process_lime_values(
                     lime_values=data.get("lime_values"),
                     prediction=prediction,
@@ -143,6 +152,7 @@ def input_params():
 @main.route("/dashboard", methods=["GET", "POST"])
 @login_required
 def dashboard():
+    """Serves LIME plot and parameters used to make predictions from the last prediction."""
     lime_image_path = session.get("lime_image_path", None)
     prediction_values = session.get("prediction_values", None)
     return render_template(
@@ -157,6 +167,10 @@ def dashboard():
 @main.route("/models", methods=["GET", "POST"])
 @login_required
 def models():
+    """
+    Serves statistics and plots about the served model, these include:
+    accuracy, precision, recal, training shape, ROC curve, P/R curve, and SHAP summary plot.
+    """
     selected_model = None
     if request.method == "POST":
         selected_model = request.form.get("model")
@@ -184,6 +198,7 @@ def models():
 @login_required
 @requires_role('admin')
 def admin():
+    """Retrieves a list of all unapproved users."""
     try:
         pending_users = get_pending_approvals()
     except Exception as e:
@@ -201,6 +216,7 @@ def admin():
 @login_required
 @requires_role("admin")
 def approve_user(user_id):
+    """Approves the user from the admin page and grants them access to the application."""
     try:
         update_user_approval(user_id, True)
         flash("User approved successfully.", "success")
@@ -213,6 +229,7 @@ def approve_user(user_id):
 @login_required
 @requires_role("admin")
 def reject_user(user_id):
+    """Rejects and removes user from the admin page."""
     try:
         delete_user(user_id)
         flash("User rejected successfully.", "success")

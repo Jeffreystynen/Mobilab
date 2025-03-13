@@ -8,6 +8,7 @@ import os
 
 
 def extract_form_features(form):
+    """Extracts all features from the input parameters form."""
     features = [
                 int(form.age.data),
                 int(form.sex.data),
@@ -27,6 +28,7 @@ def extract_form_features(form):
 
 
 def map_features(features):
+    """Maps extraced form features in a dictionary."""
     features_dict = {
                 'age': features[0],
                 'sex': features[1],
@@ -53,6 +55,7 @@ def get_prediction_from_api(features, model="xgboost"):
 
 
 def process_shap_values(shap_values, features):
+    """Processes the SHAP values received after making a prediction and plots them. Plots used for dashboard."""
     # Convert SHAP values to a DataFrame
     shap_values_list = list(shap_values.values())
     feature_names = list(shap_values.keys())
@@ -77,6 +80,7 @@ def process_shap_values(shap_values, features):
 
 
 def process_lime_values(lime_values, prediction, feature_names):
+    """Processes the LIME values received after making a prediction and plots them. Plots used for dashboard."""
     # Convert the LIME values dictionary into a DataFrame
     lime_df = pd.DataFrame(list(lime_values.items()), columns=['Feature', 'Importance'])
     

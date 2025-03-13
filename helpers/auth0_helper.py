@@ -2,6 +2,7 @@ import os
 import requests
 
 def get_management_api_token():
+    """Retrieves the management api token from Auth0."""
     domain = os.getenv("AUTH0_DOMAIN")
     client_id = os.getenv("MGMT_API_CLIENT_ID")
     client_secret = os.getenv("MGMT_API_CLIENT_SECRET")
@@ -19,10 +20,6 @@ def get_management_api_token():
     response.raise_for_status()  # Raise an error if the request fails
     token = response.json().get("access_token")
     return token
-
-if __name__ == "__main__":
-    token = get_management_api_token()
-    print("Management API Token:", token)
 
 
 def get_pending_approvals():
@@ -43,16 +40,7 @@ def get_pending_approvals():
 
 
 def update_user_approval(user_id, approval_status):
-    """
-    Update a user's approval status via the Auth0 Management API.
-    
-    Parameters:
-        user_id (str): The Auth0 user ID.
-        approval_status: Can be True for approved, False or "rejected" for rejection.
-    
-    Returns:
-        The JSON response from the API.
-    """
+    """Update a user's approval status via the Auth0 Management API based on the Auth0 user id."""
     domain = os.getenv("AUTH0_DOMAIN")
     token = get_management_api_token()
     url = f"https://{domain}/api/v2/users/{user_id}"
@@ -69,15 +57,7 @@ def update_user_approval(user_id, approval_status):
 
 
 def delete_user(user_id):
-    """
-    Delete a user from Auth0.
-    
-    Parameters:
-        user_id (str): The Auth0 user ID to delete.
-    
-    Returns:
-        dict: The response from the API.
-    """
+    """Delete a user from Auth0 based on the Auth0 user id."""
     domain = os.getenv("AUTH0_DOMAIN")
     token = get_management_api_token()
     url = f"https://{domain}/api/v2/users/{user_id}"
@@ -91,5 +71,6 @@ def delete_user(user_id):
 
 
 if __name__ == "__main__":
+    token = get_management_api_token()
     pending = get_pending_approvals()
     print(json.dumps(pending, indent=4))

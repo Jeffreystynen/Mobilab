@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 
 class Config:
+    """Configuration of the entire application."""
     load_dotenv() 
 
     # Flask settings

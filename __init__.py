@@ -21,6 +21,7 @@ def create_app():
 
     @app.context_processor
     def inject_user_roles():
+        """Retrieves the user roles at startup."""
         roles = []
         user = session.get("user")
         if user:

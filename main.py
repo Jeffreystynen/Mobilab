@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 
 def remove_shap_plots(SHAP_PLOTS_DIR):
+    """Clears the directory containing SHAP/LIME plots. Prevents plot from showing before a prediction is made."""
     if os.path.exists(SHAP_PLOTS_DIR):
         for filename in os.listdir(SHAP_PLOTS_DIR):
             file_path = os.path.join(SHAP_PLOTS_DIR, filename)

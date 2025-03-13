@@ -3,11 +3,13 @@ from wtforms.validators import DataRequired, NumberRange, ValidationError
 
 
 def validate_select(form, field):
+    """Handles validation for dropdowns on the form."""
     if field.data == '':
         raise ValidationError("Please select a valid option.")
     field.data = int(field.data)
 
 class PredictionForm(Form):
+    """Handles validation of the form found on input parameters."""
     age = FloatField('Age', validators=[DataRequired(), NumberRange(min=0)])
 
     sex = SelectField(
