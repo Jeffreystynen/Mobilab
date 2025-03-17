@@ -94,19 +94,7 @@ def input_params():
     """
     prediction = None
     lime_image_path = None
-
-    # Fetch list of available models from the model-serving API
-    try:
-        models_response = requests.get("http://127.0.0.1:5001/models")
-        if models_response.status_code == 200:
-            models = models_response.json()
-            session['models'] = models
-        else:
-            models = []
-            flash("Unable to fetch models.", "warning")
-    except Exception as e:
-        models = []
-        flash(f"Error fetching models: {str(e)}", "danger")
+    models = get_models()
 
     form = PredictionForm(request.form)
     if request.method == "POST":
@@ -136,7 +124,6 @@ def input_params():
                 prediction = "Error: Unable to get prediction."
                 flash("Prediction API error.", "danger")
         else:
-            print("Form errors:", form.errors)
             flash("There were errors in the form. Please check your input.", "danger")
 
     return render_template(
@@ -201,8 +188,7 @@ def models():
 @login_required
 @requires_role("admin")
 def manage_models():
-    models = session.get('models')
-
+    models = get_models()
     return render_template(
             "manage_models.html",
             models=models,
