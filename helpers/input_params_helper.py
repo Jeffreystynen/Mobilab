@@ -81,28 +81,87 @@ def process_shap_values(shap_values, features):
 
 def process_lime_values(lime_values, prediction, feature_names):
     """Processes the LIME values received after making a prediction and plots them. Plots used for dashboard."""
-    # Convert the LIME values dictionary into a DataFrame
+    # Convert the LIME values dictionary to a DataFrame
     lime_df = pd.DataFrame(list(lime_values.items()), columns=['Feature', 'Importance'])
     
-    # Sort by importance for better visualization
+    # Sort so highest importance is at the top
     lime_df = lime_df.sort_values(by='Importance', ascending=False)
 
-    # Create a bar plot for the LIME values
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.barh(lime_df['Feature'], lime_df['Importance'], color='#0090A5')
+    # Assign colors based on sign of importance
+    def pick_color(value):
+        return '#E73C0D' if value > 0 else '#0090A5'
 
-    # Add labels and title
+    lime_df['Color'] = lime_df['Importance'].apply(pick_color)
+
+    # Create a horizontal bar plot
+    fig, ax = plt.subplots(figsize=(8, 6))
+    bars = ax.barh(lime_df['Feature'], lime_df['Importance'], color=lime_df['Color'])
+    ax.invert_yaxis()  # So largest bar is on top
+
+    # Add annotations at the end of each bar
+    for bar in bars:
+        width = bar.get_width()
+        yloc = bar.get_y() + bar.get_height() / 2
+        if width > 0:
+            xloc = width + 0.01
+            ha = 'left'
+        else:
+            xloc = width - 0.01
+            ha = 'right'
+        ax.text(xloc, yloc, f'{width:.2f}', va='center', ha=ha, fontsize=9)
+
+    # Add a little horizontal margin so text isn't cut off
+    max_val = lime_df['Importance'].max()
+    min_val = lime_df['Importance'].min()
+    margin = 0.1 * (max_val - min_val)  # 10% margin
+    ax.set_xlim(min_val - margin, max_val + margin)
+
+    # Labels and title
     prediction_label = "Disease" if prediction == 1 else "No Disease"
     ax.set_xlabel('Importance')
     ax.set_title(f'LIME Feature Importance (Prediction: {prediction_label})')
 
-    # Save the figure as a static image
+    plt.tight_layout()
+
+    # Save the plot
     lime_image_filename = "lime_plot.png"
     lime_image_path = os.path.join("static", "lime_plots", lime_image_filename)
-    
-    # Save the plot to the desired path
-    plt.tight_layout()
-    fig.savefig(lime_image_path)
+    plt.savefig(lime_image_path, bbox_inches="tight")
     plt.close(fig)
 
-    return lime_image_path
+    text = generate_lime_text(lime_values, prediction, feature_names)
+
+    return lime_image_path, text
+
+
+def generate_lime_text(lime_values, prediction, feature_names):
+     # Convert to DataFrame
+    df = pd.DataFrame(list(lime_values.items()), columns=['Feature', 'Importance'])
+    
+    # Separate positive and negative
+    pos_df = df[df['Importance'] > 0].sort_values(by='Importance', ascending=False)
+    neg_df = df[df['Importance'] < 0].sort_values(by='Importance', ascending=True)
+    
+    # Pick top 2 from each group, if they exist
+    top_pos = pos_df.head(2)
+    top_neg = neg_df.head(2)
+    
+    # Build a short sentence
+    prediction_label = "Disease" if prediction == 1 else "No Disease"
+    explanation_text = (f"This LIME plot shows how each feature contributed to the model's final decision of '{prediction_label}'. "
+                        "Positive bars indicate features pushing the prediction toward 'Disease', while negative bars indicate features pushing it away.\n")
+    
+    # Add top positive features
+    if not top_pos.empty:
+        explanation_text += "The top positive contributors here are: "
+        explanation_text += ", ".join([f"{row['Feature']} ({row['Importance']:.2f})" for _, row in top_pos.iterrows()])
+        explanation_text += ".\n"
+    
+    # Add top negative features
+    if not top_neg.empty:
+        explanation_text += "Meanwhile, the top negative contributors are: "
+        explanation_text += ", ".join([f"{row['Feature']} ({row['Importance']:.2f})" for _, row in top_neg.iterrows()])
+        explanation_text += ".\n"
+    
+    explanation_text += "For more details, see the bar lengths and colors in the chart to the right."
+    return explanation_text

@@ -36,6 +36,11 @@
                         </li>
                         {% if 'admin' in user_roles %}
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('main.manage_models') }}">
+                                <i class="fas fa-cogs"></i> Manage Models
+                            </a>
+                          </li>
+                        <li class="nav-item">
                           <a class="nav-link" href="{{ url_for('main.admin') }}">
                             <i class="fas fa-user-tie"></i> Admin
                           </a>

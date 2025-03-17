@@ -100,6 +100,7 @@ def input_params():
         models_response = requests.get("http://127.0.0.1:5001/models")
         if models_response.status_code == 200:
             models = models_response.json()
+            session['models'] = models
         else:
             models = []
             flash("Unable to fetch models.", "warning")
@@ -124,13 +125,13 @@ def input_params():
                 session['prediction'] = prediction
 
                 # Process LIME values
-                lime_image_path = process_lime_values(
+                lime_image_path, text = process_lime_values(
                     lime_values=data.get("lime_values"),
                     prediction=prediction,
                     feature_names=features
                 )
                 session['lime_image_path'] = lime_image_path
-                print("LIME image path:", session['lime_image_path'])
+                session['lime_explanation'] = text
             else:
                 prediction = "Error: Unable to get prediction."
                 flash("Prediction API error.", "danger")
@@ -155,11 +156,13 @@ def dashboard():
     """Serves LIME plot and parameters used to make predictions from the last prediction."""
     lime_image_path = session.get("lime_image_path", None)
     prediction_values = session.get("prediction_values", None)
+    lime_explanation = session.get("lime_explanation", None)
     return render_template(
         "dashboard.html",
         session=session.get("user"),
         lime_image_path=lime_image_path,
         prediction_values=prediction_values,
+        lime_explanation=lime_explanation,
         pretty=json.dumps(session.get("user"), indent=4),
     )
 
@@ -192,6 +195,20 @@ def models():
         feature_mapping=feature_mapping,
         plots=plots,
     )
+
+
+@main.route("/manage models")
+@login_required
+@requires_role("admin")
+def manage_models():
+    models = session.get('models')
+
+    return render_template(
+            "manage_models.html",
+            models=models,
+            session=session.get("user"),
+            pretty=json.dumps(session.get("user"), indent=4),
+        )
 
 
 @main.route("/admin")
