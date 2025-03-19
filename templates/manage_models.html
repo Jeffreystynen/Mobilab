@@ -4,6 +4,12 @@
 <h2 class="text-center mb-4">Manage Models</h2>
 
 <div class="container py-5 mb-4">
+
+    <div class="mb-3">
+        <button type="button" class="btn btn-primary mr-2" data-toggle="modal" data-target="#addModelModal">
+            Add new model
+        </button>
+    </div>
     <table class="table table-striped table-bordered table-hover">
         <thead class="thead-dark">
             <tr>
@@ -32,6 +38,32 @@
 </div>
 
 
-
+<!-- Modal -->
+ <div class="modal fade modal-dialog modal-dialog-centered" id="addModelModal" tabindex="-1" aria-labelledby="addModelModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addModelModalLabel">Upload New Model</h5>
+      </div>
+      <div class="modal-body">
+        <form action="{{ url_for('main.upload_model') }}" method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label for="modelName" class="form-label">Model Name</label>
+            <input type="text" class="form-control" id="modelName" placeholder="Enter model name">
+          </div>
+          <div class="mb-3">
+            <label for="modelFile" class="form-label">Model File (.zip)</label>
+            <input type="file" class="form-control" id="modelFile">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="submit" class="btn btn-primary">Upload Model</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 
 {% endblock %}

@@ -19,6 +19,17 @@ def create_app():
     from .routes import main  
     app.register_blueprint(main)
 
+    from .api import api as api_blueprint
+    app.register_blueprint(api_blueprint)
+
+    # Initialize Swagger for API documentation
+    from flasgger import Swagger
+    app.config['SWAGGER'] = {
+        'title': 'My API',
+        'uiversion': 3
+    }
+    Swagger(app)
+
     @app.context_processor
     def inject_user_roles():
         """Retrieves the user roles at startup."""

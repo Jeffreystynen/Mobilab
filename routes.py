@@ -11,10 +11,14 @@ import jwt
 from app.helpers.routes_helper import *
 from app.helpers.models_helper import *
 from app.helpers.auth0_helper import get_pending_approvals, update_user_approval, delete_user
+from app.helpers.manage_models_helper import *
 import secrets
+import zipfile
+from .api import *
 
 
 main = Blueprint('main', __name__)
+
 
 # Register Auth0 OAuth
 auth0 = oauth.register(
@@ -89,42 +93,43 @@ def pending_approval():
 @login_required
 def input_params():
     """
-    Handles model interaction by making use of a form. Sends all form parameters to the model selected for inference,
-    default model is xgboost. Gets models prediction and LIME plot and stores them in the session.
+    Handles model interaction using a form. Sends the form parameters to the selected model for inference 
+    (default is xgboost), retrieves the model's prediction and LIME plot, and stores these in the session.
     """
     prediction = None
     lime_image_path = None
-    models = get_models()
+    try:
+        models_response = requests.get("http://127.0.0.1:5000/api/models")
+        if models_response.status_code == 200:
+            models = models_response.json()
+        else:
+            models = []
+    except Exception as e:
+        models = []
 
     form = PredictionForm(request.form)
-    if request.method == "POST":
-        if form.validate():
-            features = extract_form_features(form)
-            session['prediction_values'] = map_features(features)
-
-            # Get the selected model from the form; default to "xgboost"
-            selected_model = request.form.get("model", "xgboost").lower()
-
-            # Send features and model parameter to the prediction API
-            response = get_prediction_from_api(features, model=selected_model)
+    if request.method == "POST" and form.validate():
+        features = extract_form_features(form)
+        selected_model = request.form.get("model", "xgboost").lower()
+        payload = {
+            "features": features,
+            "model": selected_model
+        }
+        try:
+            # Adjust the URL if needed (use the container name if on the same Docker network)
+            response = requests.post("http://127.0.0.1:5000/api/predict", json=payload)
+            print(response)
             if response.status_code == 200:
                 data = response.json()
                 prediction = data.get("prediction")
+                lime_image_path = data.get("lime_image_path")
+                # You can store these in session if needed or pass directly to the template
                 session['prediction'] = prediction
-
-                # Process LIME values
-                lime_image_path, text = process_lime_values(
-                    lime_values=data.get("lime_values"),
-                    prediction=prediction,
-                    feature_names=features
-                )
                 session['lime_image_path'] = lime_image_path
-                session['lime_explanation'] = text
             else:
-                prediction = "Error: Unable to get prediction."
-                flash("Prediction API error.", "danger")
-        else:
-            flash("There were errors in the form. Please check your input.", "danger")
+                flash("Prediction API error: " + response.text, "danger")
+        except Exception as e:
+            flash("Error contacting prediction API: " + str(e), "danger")
 
     return render_template(
         "input_params.html",
@@ -158,43 +163,105 @@ def dashboard():
 @login_required
 def models():
     """
-    Serves statistics and plots about the served model, these include:
-    accuracy, precision, recal, training shape, ROC curve, P/R curve, and SHAP summary plot.
+    Serves statistics and plots about the served model, including accuracy, precision, recall, training shape,
+    ROC curve, P/R curve, and SHAP summary plot.
     """
+    metrics = None
+    plots = None
+
+    # Fetch list of available models from the API
+    try:
+        models_response = requests.get("http://127.0.0.1:5000/api/models")
+        if models_response.status_code == 200:
+            models = models_response.json()
+        else:
+            models = []
+    except Exception as e:
+        models = []
+
     selected_model = None
     if request.method == "POST":
         selected_model = request.form.get("model")
+    
     # If no model is selected, default to "xgboost"
     if not selected_model:
         flash("No model selected. Please select a model.", "danger")
+        selected_model = "xgboost"
 
-    # Fetch model-specific data using the selected model as a query parameter.
-    models_list = get_models()
-    feature_mapping = get_feature_mapping(selected_model)
-    metrics = get_metrics(selected_model)
-    plots = get_plots(selected_model)
+    try:
+        # Use selected_model to retrieve data from API
+        response = requests.get(f"http://127.0.0.1:5000/api/models/{selected_model}")
+        if response.status_code == 200:
+            data = response.json()
+            metrics = data.get("metrics")
+            plots = data.get("plots")
+        else:
+            flash(f"Error retrieving information for {selected_model}.", "danger")
+    except Exception as e:
+        flash(f"No additional information found on {selected_model}.", "danger")
 
     return render_template(
         "models.html",
-        models=models_list,
+        models=models,
         selected_model=selected_model,
         metrics=metrics,
-        feature_mapping=feature_mapping,
         plots=plots,
     )
+
 
 
 @main.route("/manage models")
 @login_required
 @requires_role("admin")
 def manage_models():
-    models = get_models()
+    try:
+        models_response = requests.get("http://127.0.0.1:5000/api/models")
+        if models_response.status_code == 200:
+            models = models_response.json()
+        else:
+            models = []
+    except Exception as e:
+        models = []
     return render_template(
             "manage_models.html",
             models=models,
             session=session.get("user"),
             pretty=json.dumps(session.get("user"), indent=4),
         )
+
+
+@main.route("/upload_model", methods=["POST"])
+@login_required
+@requires_role("admin")
+def upload_model():
+    # Check if the post request has the file part
+
+    model_name = request.form.get("modelName")
+    if not model_name:
+        flash("Please provide a model name.", "danger")
+        return redirect(url_for("main.manage_models"))
+
+    if 'modelFile' not in request.files:
+        flash("No file uploaded, please upload a .zip file", "danger")
+        return redirect(url_for("main.manage_models"))
+    
+    file = request.files['modelFile']
+    
+    # If no file is selected, flash an error
+    if file.filename == '':
+        flash("No file selected", "danger")
+        return redirect(url_for("main.manage_models"))
+    
+    try:
+        response = process_and_send_zip(uploaded_file=file, model_name=model_name)
+        if response.status_code != 200:
+            flash("Error uploading model: " + response.text, "danger")
+        else:
+            flash("Model uploaded successfully!", "success")
+    except Exception as e:
+        flash("An error occurred please try again: ")
+    
+    return redirect(url_for("main.manage_models"))
 
 
 @main.route("/admin")
