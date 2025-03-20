@@ -65,7 +65,6 @@ def callback():
     return redirect(url_for("main.input_params"))
 
 
-
 @main.route("/logout")
 def logout():
     """Handles logout with Auth0."""
@@ -118,7 +117,6 @@ def input_params():
         try:
             # Adjust the URL if needed (use the container name if on the same Docker network)
             response = requests.post("http://127.0.0.1:5000/api/predict", json=payload)
-            print(response)
             if response.status_code == 200:
                 data = response.json()
                 prediction = data.get("prediction")
@@ -127,9 +125,12 @@ def input_params():
                 session['prediction'] = prediction
                 session['lime_image_path'] = lime_image_path
             else:
-                flash("Prediction API error: " + response.text, "danger")
+                flash("Prediction API error: " + response.text, "input_params")
         except Exception as e:
-            flash("Error contacting prediction API: " + str(e), "danger")
+            flash("Error contacting prediction API: " + str(e), "input_params")
+    elif request.method == "POST" and not form.validate():
+        error_messages = "; ".join([f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()])
+        flash(f"The form contains errors: {error_messages}", "input_params")
 
     return render_template(
         "input_params.html",
@@ -138,7 +139,8 @@ def input_params():
         lime_image_path=lime_image_path,
         models=models,
         session=session.get("user"),
-        pretty=json.dumps(session.get("user"), indent=4)
+        pretty=json.dumps(session.get("user"), indent=4),
+        page_name = "input_params"
     )
 
 
@@ -185,7 +187,7 @@ def models():
     
     # If no model is selected, default to "xgboost"
     if not selected_model:
-        flash("No model selected. Please select a model.", "danger")
+        flash("No model selected. Please select a model.", "models")
         selected_model = "xgboost"
 
     try:
@@ -196,9 +198,9 @@ def models():
             metrics = data.get("metrics")
             plots = data.get("plots")
         else:
-            flash(f"Error retrieving information for {selected_model}.", "danger")
+            flash(f"Error retrieving information for {selected_model}.", "models")
     except Exception as e:
-        flash(f"No additional information found on {selected_model}.", "danger")
+        flash(f"No additional information found on {selected_model}.", "models")
 
     return render_template(
         "models.html",
@@ -206,6 +208,7 @@ def models():
         selected_model=selected_model,
         metrics=metrics,
         plots=plots,
+        page_name = "models"
     )
 
 
@@ -227,6 +230,7 @@ def manage_models():
             models=models,
             session=session.get("user"),
             pretty=json.dumps(session.get("user"), indent=4),
+            page_name="upload_model"
         )
 
 
@@ -236,29 +240,29 @@ def manage_models():
 def upload_model():
     model_name = request.form.get("modelName")
     if not model_name:
-        flash("Please provide a model name.", "danger")
+        flash("Please provide a model name.", "upload_model")
         return redirect(url_for("main.manage_models"))
 
     if 'modelFile' not in request.files:
-        flash("No file uploaded, please upload a .zip file", "danger")
+        flash("No file uploaded, please upload a .zip file", "upload_model")
         return redirect(url_for("main.manage_models"))
     
     file = request.files['modelFile']
     
     # If no file is selected, flash an error
     if file.filename == '':
-        flash("No file selected", "danger")
+        flash("No file selected", "upload_model")
         return redirect(url_for("main.manage_models"))
     
     try:
         zip_path = process_zip_file(file, model_name)
         response = send_model_to_api(zip_path, model_name)
         if response.status_code != 200:
-            flash("Error uploading model: " + response.text, "danger")
+            flash("Error uploading model: " + response.text, "upload_model")
         else:
-            flash("Model uploaded successfully!", "success")
+            flash("Model uploaded successfully!", "upload_model")
     except Exception as e:
-        flash("An error occurred please try again: ")
+        flash("An error occurred please try again: ", "upload_model")
     
     return redirect(url_for("main.manage_models"))
 
@@ -271,11 +275,11 @@ def remove_model():
     try:
         response = requests.delete(f"http://127.0.0.1:5000/api/delete_model/{model_name}")
         if response.status_code != 200:
-            flash("Error, could not delete model: " + response.text, "danger")
+            flash("Error, could not delete model: " + response.text, "upload_model")
         else:
-            flash("Model deleted!", "success")
+            flash("Model deleted!", "upload_model")
     except Exception as e:
-        flash("An error occurred please try again: ")
+        flash("An error occurred please try again: ", "upload_model")
     return redirect(url_for('main.manage_models'))
 
 
@@ -287,13 +291,14 @@ def admin():
     try:
         pending_users = get_pending_approvals()
     except Exception as e:
-        flash(f"Error fetching pending approvals: {str(e)}", "danger")
+        flash(f"Error fetching pending approvals: {str(e)}", "admin")
         pending_users = []
     return render_template(
         "admin.html",
         pending_users=pending_users,
         session=session.get("user"),
         pretty=json.dumps(session.get("user"), indent=4),
+        page_name="admin"
     )
 
 
@@ -304,9 +309,9 @@ def approve_user(user_id):
     """Approves the user from the admin page and grants them access to the application."""
     try:
         update_user_approval(user_id, True)
-        flash("User approved successfully.", "success")
+        flash("User approved successfully.", "upload_model")
     except Exception as e:
-        flash(f"Error approving user: {str(e)}", "danger")
+        flash(f"Error approving user: {str(e)}", "upload_model")
     return redirect(url_for("main.admin"))
 
 
@@ -317,7 +322,7 @@ def reject_user(user_id):
     """Rejects and removes user from the admin page."""
     try:
         delete_user(user_id)
-        flash("User rejected successfully.", "success")
+        flash("User rejected successfully.", "upload_model")
     except Exception as e:
-        flash(f"Error rejecting user: {str(e)}", "danger")
+        flash(f"Error rejecting user: {str(e)}", "upload_model")
     return redirect(url_for("main.admin"))

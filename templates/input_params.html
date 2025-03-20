@@ -5,24 +5,6 @@
         <div class="row justify-content-center">
             <div class="col-lg-12">
                 <h2 class="text-center mb-4">Enter Patient Information for Prediction</h2>
-                {% with messages = get_flashed_messages() %}
- 
-                {% if messages %}
-            
-                {% for message in messages %}
-            
-                <div class="alert alert-danger alert-dismissable show fade" role="alert">
-                    {{ message }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="close">
-                        <span aria-hidden="true">x</span>
-                    </button> 
-                </div>
-                                          
-                {% endfor  %}
-            
-                {% endif %}
-            
-                {% endwith %}
                 <form method="POST" action="{{ url_for('main.input_params') }}" class="needs-validation" novalidate>
                     {{ form.csrf_token }}
                     <div class="card shadow-sm">
