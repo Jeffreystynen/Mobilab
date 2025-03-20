@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify
 from app.helpers.models_helper import *
 from app.helpers.input_params_helper import *
 from app.helpers.models_helper import *
+from app.helpers.manage_models_helper import *
+import shutil
+import tempfile
 
 
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -166,3 +169,85 @@ def get_model_info(model_name):
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@api.route('/file_upload', methods=["POST"])
+def file_upload():
+    """
+    Uploads a model file to the model container.
+    ---
+    tags:
+      - Model Upload
+    consumes:
+      - multipart/form-data
+    produces:
+      - application/json
+    parameters:
+      - in: formData
+        name: model_name
+        type: string
+        required: true
+        description: The name to assign to the uploaded model.
+      - in: formData
+        name: file
+        type: file
+        required: true
+        description: The .zip file containing the model and associated files.
+    responses:
+      200:
+        description: File uploaded successfully.
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+      400:
+        description: No file or model name provided.
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "Missing file or model name"
+      500:
+        description: Internal server error.
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "File upload API error"
+    """
+    temp_dir = None
+    if 'file' not in request.files or 'model_name' not in request.form:
+        return jsonify({"error": "Missing file or model name"}), 400
+
+    file = request.files['file']
+    print(file)
+    model_name = request.form['model_name']
+
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    try:
+        # Save the uploaded file to a temporary directory
+        temp_dir = tempfile.mkdtemp()
+        zip_file_path = os.path.join(temp_dir, file.filename)
+        file.save(zip_file_path)
+
+        print(zip_file_path)
+        # Process the uploaded zip file
+        processed_zip_path, temp_dir = process_zip_file(zip_file_path, model_name)
+        print("zip file processed")
+        # Send the file to the model container
+        response = send_model_to_api(processed_zip_path, model_name, temp_dir)
+        
+        if response.status_code != 200:
+            return jsonify({"error": "File upload API error", "details": response.text}), response.status_code
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        shutil.rmtree(temp_dir)
