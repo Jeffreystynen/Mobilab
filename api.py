@@ -174,7 +174,7 @@ def get_model_info(model_name):
 @api.route('/file_upload', methods=["POST"])
 def file_upload():
     """
-    Uploads a model file to the model container.
+    Uploads a model file to the model container in zip format (must include model.pkl, feature-mapping.json, metrics.json).
     ---
     tags:
       - Model Upload
@@ -236,13 +236,12 @@ def file_upload():
         zip_file_path = os.path.join(temp_dir, file.filename)
         file.save(zip_file_path)
 
-        print(zip_file_path)
         # Process the uploaded zip file
         processed_zip_path, temp_dir = process_zip_file(zip_file_path, model_name)
-        print("zip file processed")
+
         # Send the file to the model container
         response = send_model_to_api(processed_zip_path, model_name, temp_dir)
-        
+      
         if response.status_code != 200:
             return jsonify({"error": "File upload API error", "details": response.text}), response.status_code
 

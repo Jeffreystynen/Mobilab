@@ -62,4 +62,3 @@ def send_model_to_api(zip_file_path, model_name, temp_dir):
         response = {"error": str(e)}
 
     return response
-
