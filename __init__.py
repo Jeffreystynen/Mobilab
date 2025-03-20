@@ -16,7 +16,7 @@ def create_app():
     # Initialize OAuth
     oauth.init_app(app)
 
-    # setup_logging()
+    setup_logging()
 
     # Import and register blueprints (import after app is created to avoid circular imports)
     from .routes import main  
@@ -59,5 +59,5 @@ def setup_logging():
     )
 
     # Reduce verbosity for third-party libraries
-    logging.getLogger("werkzeug").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    # logging.getLogger("werkzeug").setLevel(logging.WARNING)
+    # logging.getLogger("urllib3").setLevel(logging.WARNING)

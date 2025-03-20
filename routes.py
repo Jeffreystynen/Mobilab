@@ -15,9 +15,14 @@ from app.helpers.manage_models_helper import *
 import secrets
 import zipfile
 from .api import *
+import logging
 
 
 main = Blueprint('main', __name__)
+
+logger = logging.getLogger(__name__)
+
+logger.info("Application started successfully!")
 
 
 # Register Auth0 OAuth
@@ -104,6 +109,7 @@ def input_params():
         else:
             models = []
     except Exception as e:
+        logger.warning("Failed to retrieve models", exc_info=True)
         models = []
 
     form = PredictionForm(request.form)
@@ -118,6 +124,7 @@ def input_params():
             # Adjust the URL if needed (use the container name if on the same Docker network)
             response = requests.post("http://127.0.0.1:5000/api/predict", json=payload)
             if response.status_code == 200:
+                logger.info("Prediction made")
                 data = response.json()
                 prediction = data.get("prediction")
                 lime_image_path = data.get("lime_image_path")
@@ -125,11 +132,14 @@ def input_params():
                 session['prediction'] = prediction
                 session['lime_image_path'] = lime_image_path
             else:
+                logger.warning("Prediction API error")
                 flash("Prediction API error: " + response.text, "input_params")
         except Exception as e:
+            logger.warning("Prediction API error", exc_info=True)
             flash("Error contacting prediction API: " + str(e), "input_params")
     elif request.method == "POST" and not form.validate():
         error_messages = "; ".join([f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()])
+        logger.info("Form error", exc_info=True)
         flash(f"The form contains errors: {error_messages}", "input_params")
 
     return render_template(
@@ -259,9 +269,12 @@ def upload_model():
         response = send_model_to_api(zip_path, model_name)
         if response.status_code != 200:
             flash("Error uploading model: " + response.text, "upload_model")
+            logger.warning(f"Failed to upload model: {model_name}")
         else:
+            logger.info(f"Model uploaded: {model_name}")
             flash("Model uploaded successfully!", "upload_model")
     except Exception as e:
+        logger.warning(f"Failed to upload model: {model_name}")
         flash("An error occurred please try again: ", "upload_model")
     
     return redirect(url_for("main.manage_models"))
@@ -275,10 +288,13 @@ def remove_model():
     try:
         response = requests.delete(f"http://127.0.0.1:5000/api/delete_model/{model_name}")
         if response.status_code != 200:
+            logger.warning(f"Failed to delete model: {model_name}")
             flash("Error, could not delete model: " + response.text, "upload_model")
         else:
+            logger.warning(f"Model deleted: {model_name}")
             flash("Model deleted!", "upload_model")
     except Exception as e:
+        logger.warning(f"Failed to delete model: {model_name}")
         flash("An error occurred please try again: ", "upload_model")
     return redirect(url_for('main.manage_models'))
 
@@ -309,8 +325,10 @@ def approve_user(user_id):
     """Approves the user from the admin page and grants them access to the application."""
     try:
         update_user_approval(user_id, True)
+        logger.info(f"New user approved: {user_id}")
         flash("User approved successfully.", "upload_model")
     except Exception as e:
+        logger.warning(f"Failed to approve user: {user_id}")
         flash(f"Error approving user: {str(e)}", "upload_model")
     return redirect(url_for("main.admin"))
 
@@ -322,7 +340,9 @@ def reject_user(user_id):
     """Rejects and removes user from the admin page."""
     try:
         delete_user(user_id)
+        logger.info(f"User rejected: {user_id}")
         flash("User rejected successfully.", "upload_model")
     except Exception as e:
+        logger.warning(f"Failed to reject user {user_id}")
         flash(f"Error rejecting user: {str(e)}", "upload_model")
     return redirect(url_for("main.admin"))
