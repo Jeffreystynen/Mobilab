@@ -39,10 +39,10 @@ def process_zip_file(zip_file_path, model_name):
     except Exception as e:
         print(e)
 
-    return new_zip_path, temp_dir
+    return new_zip_path
 
 
-def send_model_to_api(zip_file_path, model_name, temp_dir):
+def send_model_to_api(zip_file_path, model_name):
     url = "http://127.0.0.1:5001/upload_model"
 
     if not os.path.exists(zip_file_path):

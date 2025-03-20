@@ -234,8 +234,6 @@ def manage_models():
 @login_required
 @requires_role("admin")
 def upload_model():
-    # Check if the post request has the file part
-
     model_name = request.form.get("modelName")
     if not model_name:
         flash("Please provide a model name.", "danger")
@@ -253,7 +251,8 @@ def upload_model():
         return redirect(url_for("main.manage_models"))
     
     try:
-        response = process_and_send_zip(uploaded_file=file, model_name=model_name)
+        zip_path = process_zip_file(file, model_name)
+        response = send_model_to_api(zip_path, model_name)
         if response.status_code != 200:
             flash("Error uploading model: " + response.text, "danger")
         else:
@@ -262,6 +261,22 @@ def upload_model():
         flash("An error occurred please try again: ")
     
     return redirect(url_for("main.manage_models"))
+
+
+@main.route("/remove_model", methods=["POST"])
+@login_required
+@requires_role("admin")
+def remove_model():
+    model_name = request.form.get('model_name')
+    try:
+        response = requests.delete(f"http://127.0.0.1:5000/api/delete_model/{model_name}")
+        if response.status_code != 200:
+            flash("Error, could not delete model: " + response.text, "danger")
+        else:
+            flash("Model deleted!", "success")
+    except Exception as e:
+        flash("An error occurred please try again: ")
+    return redirect(url_for('main.manage_models'))
 
 
 @main.route("/admin")

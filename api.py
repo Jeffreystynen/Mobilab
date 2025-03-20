@@ -224,7 +224,6 @@ def file_upload():
         return jsonify({"error": "Missing file or model name"}), 400
 
     file = request.files['file']
-    print(file)
     model_name = request.form['model_name']
 
     if file.filename == '':
@@ -237,10 +236,10 @@ def file_upload():
         file.save(zip_file_path)
 
         # Process the uploaded zip file
-        processed_zip_path, temp_dir = process_zip_file(zip_file_path, model_name)
+        processed_zip_path = process_zip_file(zip_file_path, model_name)
 
         # Send the file to the model container
-        response = send_model_to_api(processed_zip_path, model_name, temp_dir)
+        response = send_model_to_api(processed_zip_path, model_name)
       
         if response.status_code != 200:
             return jsonify({"error": "File upload API error", "details": response.text}), response.status_code
@@ -250,3 +249,42 @@ def file_upload():
         return jsonify({"error": str(e)}), 500
     finally:
         shutil.rmtree(temp_dir)
+
+
+@api.route('/delete_model/<model_name>', methods=["DELETE"])
+def remove_model(model_name):
+  """
+    Deletes a model from the model container.
+    ---
+    tags:
+      - Model Management
+    parameters:
+      - name: model_name
+        in: path
+        type: string
+        required: true
+        description: Name of the model to delete.
+    responses:
+      200:
+        description: Model deleted successfully.
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+      404:
+        description: Model not found.
+      500:
+        description: Internal server error.
+    """
+  url = f"http://127.0.0.1:5001/delete_model/{model_name}"
+
+  try:
+    response = requests.delete(url)
+    if response.status_code != 200:
+      return jsonify({"error": "Model deletion API error", "details": response.text}), response.status_code
+    return jsonify({"success": "Model deleted successfully", "details": response.text}), response.status_code
+
+  except Exception as e:
+      return jsonify({"error": str(e)}), 500
