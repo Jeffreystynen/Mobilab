@@ -115,6 +115,7 @@ def input_params():
     form = PredictionForm(request.form)
     if request.method == "POST" and form.validate():
         features = extract_form_features(form)
+        session['prediction_values'] = map_features(features)
         selected_model = request.form.get("model", "xgboost").lower()
         payload = {
             "features": features,
@@ -128,7 +129,7 @@ def input_params():
                 data = response.json()
                 prediction = data.get("prediction")
                 lime_image_path = data.get("lime_image_path")
-                # You can store these in session if needed or pass directly to the template
+                session['lime_explanation'] = data.get("lime_explanation")
                 session['prediction'] = prediction
                 session['lime_image_path'] = lime_image_path
             else:

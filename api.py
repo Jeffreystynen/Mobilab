@@ -81,6 +81,7 @@ def predict_api():
     return jsonify({
         "prediction": prediction,
         "lime_values": lime_values,
+        "lime_explanation": lime_explanation,
         "lime_image_path" : lime_image_path
     })
 
