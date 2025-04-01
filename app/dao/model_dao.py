@@ -19,7 +19,7 @@ def get_metrics(model_name):
         with conn.cursor() as cursor:
             # Assume you join on Model to get the correct modelId.
             sql = """
-                SELECT m.name, met.accuracy, met.report, met.trainingShape
+                SELECT m.name, met.accuracy, met.trainingShape
                 FROM Model m
                 JOIN Metric met ON m.modelId = met.modelId
                 WHERE m.name = %s
