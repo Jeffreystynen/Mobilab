@@ -2,28 +2,28 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
-from functools import wraps
 import requests
 from .form import PredictionForm
-from app.helpers.input_params_helper import *
+from app.helpers.input_params_helper import extract_form_features, map_features
 from app import oauth
-import jwt
-from app.helpers.routes_helper import *
-from app.helpers.models_helper import *
-from app.helpers.auth0_helper import get_pending_approvals, update_user_approval, delete_user
-from app.helpers.manage_models_helper import *
+from app.helpers.routes_helper import login_required, requires_role
+from app.helpers.manage_models_helper import process_zip_file, send_model_to_api
+from app.services.auth_service import (
+    fetch_pending_approvals,
+    approve_user,
+    reject_user,
+    remove_user,
+    handle_auth_callback,
+)
+from app.services.database_service import get_all_models, get_model_metrics, get_model_plots
 import secrets
-import zipfile
-from .api import *
 import logging
 
 
 main = Blueprint('main', __name__)
-
 logger = logging.getLogger(__name__)
 
 logger.info("Application started successfully!")
-
 
 # Register Auth0 OAuth
 auth0 = oauth.register(
@@ -54,20 +54,15 @@ def login():
 
 @main.route("/callback", methods=["GET", "POST"])
 def callback():
-    """Establishes access token and checks users approval status"""
-    token = oauth.auth0.authorize_access_token()
-    nonce = session.get("nonce")
-    userinfo = oauth.auth0.parse_id_token(token, nonce=nonce)
-    
-    # Check if the user is approved
-    approved = userinfo.get("https://mobilab.demo.app.com/approved", False)
-    if not approved:
-        flash("Your account is pending admin approval. Please contact an administrator.", "warning")
+    """Establishes access token and checks users' approval status."""
+    try:
+        token = oauth.auth0.authorize_access_token()
+        result = handle_auth_callback(token)
+        flash(result["message"], "success")
+        return redirect(url_for("main.input_params"))
+    except ValueError as e:
+        flash(str(e), "warning")
         return redirect(url_for("main.pending_approval"))
-    
-    # Store the decoded user info directly in the session
-    session["user"] = userinfo
-    return redirect(url_for("main.input_params"))
 
 
 @main.route("/logout")
@@ -179,17 +174,14 @@ def models():
     Serves statistics and plots about the served model, including accuracy, precision, recall, training shape,
     ROC curve, P/R curve, and SHAP summary plot.
     """
-    metrics = None
-    plots = None
+    metrics = {}
+    plots = {}
 
-    # Fetch list of available models from the API
+    # Fetch list of available models from the database service
     try:
-        models_response = requests.get("http://127.0.0.1:5000/api/models")
-        if models_response.status_code == 200:
-            models = models_response.json()
-        else:
-            models = []
-    except Exception as e:
+        models = get_all_models()
+    except ValueError as e:
+        flash(f"Error fetching models: {str(e)}", "models")
         models = []
 
     selected_model = None
@@ -199,29 +191,24 @@ def models():
     # If no model is selected, default to "xgboost"
     if not selected_model:
         flash("No model selected. Please select a model.", "models")
-        selected_model = "xgboost"
+        selected_model = models[0] if models else "No models available"
 
     try:
-        # Use selected_model to retrieve data from API
-        response = requests.get(f"http://127.0.0.1:5000/api/models/{selected_model}")
-        if response.status_code == 200:
-            data = response.json()
-            metrics = data.get("metrics")
-            plots = data.get("plots")
-        else:
-            flash(f"Error retrieving information for {selected_model}.", "models")
-    except Exception as e:
-        flash(f"No additional information found on {selected_model}.", "models")
-
+        # Fetch metrics and plots for the selected model
+        metrics = get_model_metrics(selected_model)
+        plots = get_model_plots(selected_model)
+        print(metrics)
+    except ValueError as e:
+        flash(f"Error retrieving information for {selected_model}: {str(e)}", "models")
+    print(models)
     return render_template(
         "models.html",
         models=models,
         selected_model=selected_model,
         metrics=metrics,
         plots=plots,
-        page_name = "models"
+        page_name="models"
     )
-
 
 
 @main.route("/manage models")
@@ -306,8 +293,8 @@ def remove_model():
 def admin():
     """Retrieves a list of all unapproved users."""
     try:
-        pending_users = get_pending_approvals()
-    except Exception as e:
+        pending_users = fetch_pending_approvals()
+    except ValueError as e:
         flash(f"Error fetching pending approvals: {str(e)}", "admin")
         pending_users = []
     return render_template(
@@ -322,28 +309,37 @@ def admin():
 @main.route("/approve/<user_id>", methods=["POST"])
 @login_required
 @requires_role("admin")
-def approve_user(user_id):
+def approve_user_route(user_id):
     """Approves the user from the admin page and grants them access to the application."""
     try:
-        update_user_approval(user_id, True)
-        logger.info(f"New user approved: {user_id}")
-        flash("User approved successfully.", "upload_model")
-    except Exception as e:
-        logger.warning(f"Failed to approve user: {user_id}")
-        flash(f"Error approving user: {str(e)}", "upload_model")
+        result = approve_user(user_id)
+        flash(result["message"], "success")
+    except ValueError as e:
+        flash(str(e), "error")
     return redirect(url_for("main.admin"))
 
 
 @main.route("/reject/<user_id>", methods=["POST"])
 @login_required
 @requires_role("admin")
-def reject_user(user_id):
+def reject_user_route(user_id):
     """Rejects and removes user from the admin page."""
     try:
-        delete_user(user_id)
-        logger.info(f"User rejected: {user_id}")
-        flash("User rejected successfully.", "upload_model")
-    except Exception as e:
-        logger.warning(f"Failed to reject user {user_id}")
-        flash(f"Error rejecting user: {str(e)}", "upload_model")
+        result = reject_user(user_id)
+        flash(result["message"], "success")
+    except ValueError as e:
+        flash(str(e), "error")
+    return redirect(url_for("main.admin"))
+
+
+@main.route("/delete/<user_id>", methods=["DELETE"])
+@login_required
+@requires_role("admin")
+def delete_user_route(user_id):
+    """Deletes a user from Auth0."""
+    try:
+        result = remove_user(user_id)
+        flash(result["message"], "success")
+    except ValueError as e:
+        flash(str(e), "error")
     return redirect(url_for("main.admin"))

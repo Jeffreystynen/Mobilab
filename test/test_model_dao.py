@@ -2,7 +2,6 @@ import pytest
 from app.dao.model_dao import get_models, get_metrics, get_plots, get_report
 import json
 
-# Adjust these if you have different dummy records.
 TEST_MODEL_NAME = "DRF_1_AutoML_5_20250327_133650"
 
 def test_get_models():

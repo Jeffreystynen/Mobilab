@@ -10,7 +10,7 @@
                     <select id="modelSelect" name="model" class="form-control mr-3 col-sm-5" required>
                         <option value="">--Select a Model--</option>
                         {% for model in models %}
-                            <option value="{{ model.name }}" {% if model.name == selected_model %}selected{% endif %}>{{ model.name }}</option>
+                            <option value="{{ model }}">{{ model }}</option>
                         {% endfor %}
                     </select>
                     <button type="submit" class="btn btn-primary btn-sm ml-2">Select</button>
@@ -20,79 +20,86 @@
               
         {% if selected_model %}
             <h3>Metrics for {{ selected_model }}</h3>
-            <table class="table table-striped table-bordered">
-                <thead class="thead-dark">
-                    <tr>
-                        <th>Parameter</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for key, value in metrics.items() %}
+            {% if metrics %}
+                <table class="table table-striped table-bordered">
+                    <thead class="thead-dark">
                         <tr>
-                            <td>{{ key|replace('_', ' ')|title }}</td>
-                            <td>{{ value }}</td>
+                            <th>Parameter</th>
+                            <th>Value</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for key, value in metrics.items() %}
+                            <tr>
+                                <td>{{ key|replace('_', ' ')|title }}</td>
+                                <td>{{ value }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No metrics available for the selected model.</p>
+            {% endif %}
+
             <h3>Plots for {{ selected_model }}</h3>
-            <div class="container mt-4">
-                <div class="row">
-                    {% for plot_name, plot_url in plots.items() %}
-                        <div class="col-md-12">
-                            <div class="card mb-4">
-                                <div class="row g-0 d-flex align-items-center">
-                                    {% if loop.index % 2 == 0 %}
-                                        <!-- Reverse layout for even indexes -->
-                                        <div class="col-md-6 order-md-2">
-                                            <img src="{{ plot_url }}" class="img-fluid" alt="Plot">
-                                        </div>
-                                        <div class="col-md-6 order-md-1 d-flex align-items-center">
-                                            <div class="card-body">
-                                                <h5 class="card-title">{{ plot_name|replace('.png', '')|replace('_', ' ')|title }}</h5>
-                                                <p class="card-text">
-                                                    {% if 'roc' in plot_name.lower() %}
-                                                        This ROC Curve shows the trade-off between sensitivity and specificity.
-                                                    {% elif 'pr' in plot_name.lower() %}
-                                                        The Precision-Recall Curve helps evaluate model performance under class imbalance.
-                                                    {% elif 'shap' in plot_name.lower() %}
-                                                        The SHAP summary explains which features impact the model's decisions the most.
-                                                    {% else %}
-                                                        This plot visualizes an important aspect of the model.
-                                                    {% endif %}
-                                                </p>
+            {% if plots %}
+                <div class="container mt-4">
+                    <div class="row">
+                        {% for plot_name, plot_url in plots.items() %}
+                            <div class="col-md-12">
+                                <div class="card mb-4">
+                                    <div class="row g-0 d-flex align-items-center">
+                                        {% if loop.index % 2 == 0 %}
+                                            <div class="col-md-6 order-md-2">
+                                                <img src="{{ plot_url }}" class="img-fluid" alt="Plot">
                                             </div>
-                                        </div>
-                                    {% else %}
-                                        <!-- Normal layout for odd indexes -->
-                                        <div class="col-md-6">
-                                            <img src="{{ plot_url }}" class="img-fluid" alt="Plot">
-                                        </div>
-                                        <div class="col-md-6 d-flex align-items-center">
-                                            <div class="card-body">
-                                                <h5 class="card-title">{{ plot_name|replace('.png', '')|replace('_', ' ')|title }}</h5>
-                                                <p class="card-text">
-                                                    {% if 'roc' in plot_name.lower() %}
-                                                        This ROC Curve shows the trade-off between sensitivity and specificity.
-                                                    {% elif 'pr' in plot_name.lower() %}
-                                                        The Precision-Recall Curve helps evaluate model performance under class imbalance.
-                                                    {% elif 'shap' in plot_name.lower() %}
-                                                        The SHAP summary explains which features impact the model's decisions the most.
-                                                    {% else %}
-                                                        This plot visualizes an important aspect of the model.
-                                                    {% endif %}
-                                                </p>
+                                            <div class="col-md-6 order-md-1 d-flex align-items-center">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">{{ plot_name|replace('.png', '')|replace('_', ' ')|title }}</h5>
+                                                    <p class="card-text">
+                                                        {% if 'roc' in plot_name.lower() %}
+                                                            This ROC Curve shows the trade-off between sensitivity and specificity.
+                                                        {% elif 'pr' in plot_name.lower() %}
+                                                            The Precision-Recall Curve helps evaluate model performance under class imbalance.
+                                                        {% elif 'shap' in plot_name.lower() %}
+                                                            The SHAP summary explains which features impact the model's decisions the most.
+                                                        {% else %}
+                                                            This plot visualizes an important aspect of the model.
+                                                        {% endif %}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    {% endif %}
+                                        {% else %}
+                                            <div class="col-md-6">
+                                                <img src="{{ plot_url }}" class="img-fluid" alt="Plot">
+                                            </div>
+                                            <div class="col-md-6 d-flex align-items-center">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">{{ plot_name|replace('.png', '')|replace('_', ' ')|title }}</h5>
+                                                    <p class="card-text">
+                                                        {% if 'roc' in plot_name.lower() %}
+                                                            This ROC Curve shows the trade-off between sensitivity and specificity.
+                                                        {% elif 'pr' in plot_name.lower() %}
+                                                            The Precision-Recall Curve helps evaluate model performance under class imbalance.
+                                                        {% elif 'shap' in plot_name.lower() %}
+                                                            The SHAP summary explains which features impact the model's decisions the most.
+                                                        {% else %}
+                                                            This plot visualizes an important aspect of the model.
+                                                        {% endif %}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    {% endfor %}
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>                       
-        {% endif %}   
+            {% else %}
+                <p>No plots available for the selected model.</p>
+            {% endif %}
+        {% endif %}
         </div>
     </div>
 {% endblock %}
