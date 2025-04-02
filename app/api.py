@@ -5,6 +5,7 @@ from app.helpers.models_helper import *
 from app.helpers.manage_models_helper import *
 import shutil
 import tempfile
+from app.services.prediction_service import handle_prediction
 
 
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -59,34 +60,23 @@ def predict_api():
         return jsonify({"error": "No input data provided"}), 400
 
     features = data.get("features")
-    selected_model = data.get("model", "xgboost")
+    selected_model = data.get("model")
 
-    # Call the prediction API (using your helper function)
-    response = get_prediction_from_api(features, model=selected_model)
-    print(response.text)
-    if response.status_code != 200:
-        return jsonify({"error": "Prediction API error", "details": response.text}), response.status_code
+    if not features or selected_model:
+        return jsonify({"error": "Features and model are required for prediction"}), 400
 
-    # Process the API response
-    data = response.json()
-    prediction = data.get("prediction")
-    contributions = data.get("contributions")  # H2O AI contributions
+    # Call the prediction service
+    result = handle_prediction(features, selected_model, api_url="http://127.0.0.1:5001/predict")
 
-    if not contributions:
-        return jsonify({"error": "No contributions found in the response"}), 500
-
-    # Process LIME values into a plot and return its path
-    lime_image_path, lime_explanation = process_h2o_contributions(
-        h2o_data={"contributions": contributions, "prediction": prediction},
-        feature_names=features
-    )
-
-    return jsonify({
-        "prediction": prediction,
-        "lime_values": contributions,
-        "lime_explanation": lime_explanation,
-        "lime_image_path": lime_image_path
-    })
+    if result["success"]:
+        return jsonify({
+            "prediction": result["prediction"],
+            "contribution_values": result["contributions"],
+            "contribution_explanation": result["contributions_explanation"],
+            "contribution_image_path": result["contributions_image_path"]
+        })
+    else:
+        return jsonify({"error": result["error"]}), 500
 
 
 @api.route('/file_upload', methods=["POST"])

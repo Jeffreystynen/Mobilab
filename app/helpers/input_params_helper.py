@@ -9,6 +9,9 @@ import os
 
 def extract_form_features(form):
     """Extracts all features from the input parameters form."""
+    if isinstance(form, list):
+        features = form
+
     features = [
                 int(form.age.data),
                 int(form.sex.data),
@@ -45,13 +48,6 @@ def map_features(features):
                 'thal': features[12]
             }
     return features_dict
-
-
-def get_prediction_from_api(features, model="xgboost"):
-    """Send a POST request to the prediction API with the features and model selection."""
-    url = "http://127.0.0.1:5001/predict"
-    data = {"features": features, "model": model}
-    return requests.post(url, json=data)
 
 
 def generate_h2o_explanation_text(contributions, bias_term, prediction, feature_names):

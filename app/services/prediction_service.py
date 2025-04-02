@@ -1,18 +1,22 @@
-import requests
 import logging
 from app.helpers.input_params_helper import extract_form_features, map_features
 from app.services.database_service import get_all_models
+from app.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 
-def handle_prediction(form, selected_model):
+def handle_prediction(features, selected_model, api_url="http://127.0.0.1:5000/api/predict"):
     """
     Handles the prediction process, including feature extraction, API calls, and result processing.
     """
     try:
-        # Extract features from the form
-        features = extract_form_features(form)
-        mapped_features = map_features(features)
+        # If features are passed as a list, map them directly
+        if isinstance(features, list):
+            mapped_features = map_features(features)
+        else:
+            # Otherwise, extract features from the form
+            features = extract_form_features(features)
+            mapped_features = map_features(features)
 
         # Prepare the payload for the prediction API
         payload = {
@@ -20,21 +24,20 @@ def handle_prediction(form, selected_model):
             "model": selected_model
         }
 
-        # Call the prediction API
-        response = requests.post("http://127.0.0.1:5000/api/predict", json=payload)
-        if response.status_code == 200:
-            logger.info("Prediction made successfully")
-            data = response.json()
+        # Call the prediction API using APIClient
+        response = APIClient.post(api_url, json=payload)
+
+        if "error" not in response:
             return {
                 "success": True,
-                "prediction": data.get("prediction"),
-                "contributions_image_path": data.get("lime_image_path"),  # Update key name if needed
-                "contributions_explanation": data.get("lime_explanation"),  # Update key name if needed
+                "prediction": response.get("prediction"),
+                "contributions": response.get("contributions"),
+                "contributions_image_path": response.get("contributions_image_path"),
+                "contributions_explanation": response.get("contributions_explanation"),
                 "mapped_features": mapped_features
             }
         else:
-            logger.warning("Prediction API error: " + response.text)
-            return {"success": False, "error": "Prediction API error: " + response.text}
+            return {"success": False, "error": response["error"]}
     except Exception as e:
         logger.error("Error during prediction", exc_info=True)
         return {"success": False, "error": f"Error contacting prediction API: {str(e)}"}
