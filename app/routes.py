@@ -16,6 +16,7 @@ from app.services.auth_service import (
     handle_auth_callback,
 )
 from app.services.database_service import get_all_models, get_model_metrics, get_model_plots, get_model_report
+from app.services.prediction_service import handle_prediction, fetch_models
 import secrets
 import logging
 
@@ -93,46 +94,31 @@ def pending_approval():
 def input_params():
     """
     Handles model interaction using a form. Sends the form parameters to the selected model for inference 
-    (default is xgboost), retrieves the model's prediction and LIME plot, and stores these in the session.
+    (default is xgboost), retrieves the model's prediction and SHAP plot, and stores these in the session.
     """
     prediction = None
-    lime_image_path = None
-    try:
-        models_response = requests.get("http://127.0.0.1:5000/api/models")
-        if models_response.status_code == 200:
-            models = models_response.json()
-        else:
-            models = []
-    except Exception as e:
-        logger.warning("Failed to retrieve models", exc_info=True)
-        models = []
+    contributions_image_path = None
 
+    # Fetch available models
+    models = fetch_models()
+
+    # Handle form submission
     form = PredictionForm(request.form)
     if request.method == "POST" and form.validate():
-        features = extract_form_features(form)
-        session['prediction_values'] = map_features(features)
-        selected_model = request.form.get("model", "xgboost").lower()
-        payload = {
-            "features": features,
-            "model": selected_model
-        }
-        try:
-            # Adjust the URL if needed (use the container name if on the same Docker network)
-            response = requests.post("http://127.0.0.1:5000/api/predict", json=payload)
-            if response.status_code == 200:
-                logger.info("Prediction made")
-                data = response.json()
-                prediction = data.get("prediction")
-                lime_image_path = data.get("lime_image_path")
-                session['lime_explanation'] = data.get("lime_explanation")
-                session['prediction'] = prediction
-                session['lime_image_path'] = lime_image_path
-            else:
-                logger.warning("Prediction API error")
-                flash("Prediction API error: " + response.text, "input_params")
-        except Exception as e:
-            logger.warning("Prediction API error", exc_info=True)
-            flash("Error contacting prediction API: " + str(e), "input_params")
+        selected_model = request.form.get("model", "xgboost")
+        result = handle_prediction(form, selected_model)
+
+        if result["success"]:
+            # Store results in the session
+            session['prediction_values'] = result["mapped_features"]
+            session['prediction'] = result["prediction"]
+            session['contributions_image_path'] = result["contributions_image_path"]
+            session['contributions_explanation'] = result["contributions_explanation"]
+
+            prediction = result["prediction"]
+            contributions_image_path = result["contributions_image_path"]
+        else:
+            flash(result["error"], "input_params")
     elif request.method == "POST" and not form.validate():
         error_messages = "; ".join([f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()])
         logger.info("Form error", exc_info=True)
@@ -142,11 +128,11 @@ def input_params():
         "input_params.html",
         form=form,
         prediction=prediction,
-        lime_image_path=lime_image_path,
+        contributions_image_path=contributions_image_path,
         models=models,
         session=session.get("user"),
         pretty=json.dumps(session.get("user"), indent=4),
-        page_name = "input_params"
+        page_name="input_params"
     )
 
 

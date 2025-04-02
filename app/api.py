@@ -76,7 +76,7 @@ def predict_api():
         return jsonify({"error": "No contributions found in the response"}), 500
 
     # Process LIME values into a plot and return its path
-    lime_image_path, lime_explanation = process_lime_values(
+    lime_image_path, lime_explanation = process_h2o_contributions(
         h2o_data={"contributions": contributions, "prediction": prediction},
         feature_names=features
     )
