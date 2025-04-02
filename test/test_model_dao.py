@@ -24,7 +24,7 @@ def test_get_metrics():
     assert metrics is not None, "Metrics should not be None"
     assert isinstance(metrics, dict), "Metrics should be a dictionary"
     # Check that the keys we expect exist:
-    for key in ["accuracy", "trainingShape"]:
+    for key in ["accuracy", "trainingShape", "createdAt", "version"]:
         assert key in metrics, f"Missing key '{key}' in metrics"
 
 def test_get_plots():

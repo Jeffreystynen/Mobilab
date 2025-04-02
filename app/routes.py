@@ -15,7 +15,7 @@ from app.services.auth_service import (
     remove_user,
     handle_auth_callback,
 )
-from app.services.database_service import get_all_models, get_model_metrics, get_model_plots
+from app.services.database_service import get_all_models, get_model_metrics, get_model_plots, get_model_report
 import secrets
 import logging
 
@@ -188,15 +188,18 @@ def models():
     if request.method == "POST":
         selected_model = request.form.get("model")
     
-    # If no model is selected, default to "xgboost"
+    # If no model is selected, default to the first model in the list
     if not selected_model:
-        flash("No model selected. Please select a model.", "models")
         selected_model = models[0] if models else "No models available"
 
     try:
         # Fetch metrics and plots for the selected model
         metrics = get_model_metrics(selected_model)
         plots = get_model_plots(selected_model)
+        report = get_model_report(selected_model)
+        if "trainingShape" in metrics:
+            metrics["trainingShape"] = json.loads(metrics["trainingShape"])
+  
         print(metrics)
     except ValueError as e:
         flash(f"Error retrieving information for {selected_model}: {str(e)}", "models")
@@ -207,6 +210,7 @@ def models():
         selected_model=selected_model,
         metrics=metrics,
         plots=plots,
+        report=report,
         page_name="models"
     )
 
