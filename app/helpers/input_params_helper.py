@@ -79,15 +79,25 @@ def process_shap_values(shap_values, features):
     return shap_image_path
 
 
-def process_lime_values(lime_values, prediction, feature_names):
-    """Processes the LIME values received after making a prediction and plots them. Plots used for dashboard."""
-    # Convert the LIME values dictionary to a DataFrame
-    lime_df = pd.DataFrame(list(lime_values.items()), columns=['Feature', 'Importance'])
-    
+def process_lime_values(h2o_data, feature_names):
+    """
+    Processes the H2O AI contributions and plots them. Plots are used for the dashboard.
+    """
+    # Extract contributions and prediction
+    contributions = h2o_data.get("contributions", {})
+    prediction = h2o_data.get("prediction", 0)
+
+    # Convert contributions to a DataFrame
+    lime_df = pd.DataFrame(list(contributions.items()), columns=['Feature', 'Importance'])
+
+    # Exclude the BiasTerm from the plot but keep it for reference
+    bias_term = lime_df[lime_df['Feature'] == 'BiasTerm']['Importance'].values[0]
+    lime_df = lime_df[lime_df['Feature'] != 'BiasTerm']
+
     # Sort so highest importance is at the top
     lime_df = lime_df.sort_values(by='Importance', ascending=False)
 
-    # Assign colors based on sign of importance
+    # Assign colors based on the sign of importance
     def pick_color(value):
         return '#E73C0D' if value > 0 else '#0090A5'
 
@@ -96,7 +106,7 @@ def process_lime_values(lime_values, prediction, feature_names):
     # Create a horizontal bar plot
     fig, ax = plt.subplots(figsize=(8, 6))
     bars = ax.barh(lime_df['Feature'], lime_df['Importance'], color=lime_df['Color'])
-    ax.invert_yaxis()  # So largest bar is on top
+    ax.invert_yaxis()  # So the largest bar is on top
 
     # Add annotations at the end of each bar
     for bar in bars:
@@ -119,19 +129,64 @@ def process_lime_values(lime_values, prediction, feature_names):
     # Labels and title
     prediction_label = "Disease" if prediction == 1 else "No Disease"
     ax.set_xlabel('Importance')
-    ax.set_title(f'LIME Feature Importance (Prediction: {prediction_label})')
+    ax.set_title(f'H2O Feature Contributions (Prediction: {prediction_label})')
 
     plt.tight_layout()
 
+    # Ensure the directory exists
+    lime_plots_dir = os.path.join("static", "lime_plots")
+    os.makedirs(lime_plots_dir, exist_ok=True)
+
     # Save the plot
-    lime_image_filename = "lime_plot.png"
-    lime_image_path = os.path.join("static", "lime_plots", lime_image_filename)
+    lime_image_filename = "h2o_contributions_plot.png"
+    lime_image_path = os.path.join(lime_plots_dir, lime_image_filename)
     plt.savefig(lime_image_path, bbox_inches="tight")
     plt.close(fig)
 
-    text = generate_lime_text(lime_values, prediction, feature_names)
+    # Generate explanation text
+    text = generate_h2o_explanation_text(contributions, bias_term, prediction, feature_names)
 
     return lime_image_path, text
+
+
+def generate_h2o_explanation_text(contributions, bias_term, prediction, feature_names):
+    """
+    Generates a textual explanation for the H2O AI contributions.
+    """
+    # Convert contributions to a DataFrame
+    df = pd.DataFrame(list(contributions.items()), columns=['Feature', 'Importance'])
+
+    # Exclude the BiasTerm for ranking
+    df = df[df['Feature'] != 'BiasTerm']
+
+    # Separate positive and negative contributions
+    pos_df = df[df['Importance'] > 0].sort_values(by='Importance', ascending=False)
+    neg_df = df[df['Importance'] < 0].sort_values(by='Importance', ascending=True)
+
+    # Pick top 2 from each group, if they exist
+    top_pos = pos_df.head(2)
+    top_neg = neg_df.head(2)
+
+    # Build a short sentence
+    prediction_label = "Disease" if prediction == 1 else "No Disease"
+    explanation_text = (f"This plot shows how each feature contributed to the model's final decision of '{prediction_label}'. "
+                        f"The bias term contributed {bias_term:.2f} to the prediction. "
+                        "Positive bars indicate features pushing the prediction toward 'Disease', while negative bars indicate features pushing it away.\n")
+
+    # Add top positive contributors
+    if not top_pos.empty:
+        explanation_text += "The top positive contributors are: "
+        explanation_text += ", ".join([f"{row['Feature']} ({row['Importance']:.2f})" for _, row in top_pos.iterrows()])
+        explanation_text += ".\n"
+
+    # Add top negative contributors
+    if not top_neg.empty:
+        explanation_text += "The top negative contributors are: "
+        explanation_text += ", ".join([f"{row['Feature']} ({row['Importance']:.2f})" for _, row in top_neg.iterrows()])
+        explanation_text += ".\n"
+
+    explanation_text += "For more details, see the bar lengths and colors in the chart."
+    return explanation_text
 
 
 def generate_lime_text(lime_values, prediction, feature_names):
