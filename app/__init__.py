@@ -1,25 +1,34 @@
 from flask import Flask, session
 from .config import Config
 from authlib.integrations.flask_client import OAuth
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import os
 import logging
+from flask_wtf.csrf import CSRFProtect
 
+# Initialize extensions
 oauth = OAuth()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 def create_app():
     # Create a Flask app instance
     app = Flask(__name__)
-
+    
     # Load configuration
     app.config.from_object(Config)
-
-    # Initialize OAuth
+    
+    # Initialize extensions
+    csrf = CSRFProtect(app)
     oauth.init_app(app)
+    limiter.init_app(app)  # Initialize limiter with app
 
-    # setup_logging()
-
-    # Import and register blueprints (import after app is created to avoid circular imports)
-    from .routes import main  
+    # Import and register blueprints
+    from .routes import main
     app.register_blueprint(main)
 
     from .api import api as api_blueprint

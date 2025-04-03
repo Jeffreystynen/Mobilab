@@ -1,5 +1,6 @@
 from wtforms import Form, FloatField, IntegerField, SelectField
 from wtforms.validators import DataRequired, NumberRange, ValidationError
+from flask_wtf import FlaskForm
 
 
 def validate_select(form, field):
@@ -93,3 +94,8 @@ class PredictionForm(Form):
         coerce=str,
         validators=[DataRequired(), validate_select]
     )
+
+
+class CSRFProtectionForm(FlaskForm):
+    """Handles CSRF protection for the form."""
+    pass

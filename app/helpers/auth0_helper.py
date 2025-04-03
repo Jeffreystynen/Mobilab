@@ -70,7 +70,7 @@ def delete_user(user_id):
     return response.json()
 
 
-if __name__ == "__main__":
-    token = get_management_api_token()
-    pending = get_pending_approvals()
-    print(json.dumps(pending, indent=4))
+# if __name__ == "__main__":
+#     token = get_management_api_token()
+#     pending = get_pending_approvals()
+#     print(json.dumps(pending, indent=4))

@@ -3,16 +3,16 @@ import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
 import requests
-from .form import PredictionForm
+from .form import PredictionForm, CSRFProtectionForm
 from app.helpers.input_params_helper import extract_form_features, map_features
 from app import oauth
 from app.helpers.routes_helper import login_required, requires_role
 from app.helpers.manage_models_helper import process_zip_file, send_model_to_api
 from app.services.auth_service import (
+    fetch_all_users,
     fetch_pending_approvals,
     approve_user,
     reject_user,
-    remove_user,
     handle_auth_callback,
 )
 from app.services.database_service import get_all_models, get_model_metrics, get_model_plots, get_model_report
@@ -21,6 +21,7 @@ import secrets
 import logging
 from app.helpers.session_helper import store_prediction_results
 from app.services.form_service import process_prediction_form
+from . import limiter
 
 
 main = Blueprint('main', __name__)
@@ -45,6 +46,7 @@ def index():
 
 
 @main.route("/login")
+@limiter.limit("5 per minute")
 def login():
     """Serves the Auth0 login page."""
     nonce = secrets.token_urlsafe(16)
@@ -93,6 +95,7 @@ def pending_approval():
 
 @main.route("/input", methods=["GET", "POST"])
 @login_required
+@limiter.limit("5 per minute")
 def input_params():
     """
     Handles model interaction using a form. Sends the form parameters to the /predict API for inference.
@@ -142,6 +145,7 @@ def input_params():
 
 @main.route("/dashboard", methods=["GET", "POST"])
 @login_required
+@limiter.limit("20 per minute")
 def dashboard():
     """Serves LIME plot and parameters used to make predictions from the last prediction."""
     contributions_image_path = session.get("contributions_image_path", None)
@@ -161,6 +165,7 @@ def dashboard():
 
 @main.route("/models", methods=["GET", "POST"])
 @login_required
+@limiter.limit("20 per minute")
 def models():
     """
     Serves statistics and plots about the served model, including accuracy, precision, recall, training shape,
@@ -283,18 +288,29 @@ def models():
 #     return redirect(url_for('main.manage_models'))
 
 
-@main.route("/admin")
+@main.route("/admin", methods=["GET", "POST"])
 @login_required
+@limiter.limit("20 per minute")
 @requires_role('admin')
 def admin():
     """Retrieves a list of all unapproved users."""
+    form = CSRFProtectionForm()
+    if request.method == "POST":
+        if not form.validate_on_submit():
+            flash("CSRF token validation failed", "error")
+            return redirect(url_for("main.admin"))
+
     try:
+        users = fetch_all_users()
         pending_users = fetch_pending_approvals()
     except ValueError as e:
         flash(f"Error fetching pending approvals: {str(e)}", "admin")
         pending_users = []
+
     return render_template(
         "admin.html",
+        users=users,
+        form=form,
         pending_users=pending_users,
         session=session.get("user"),
         pretty=json.dumps(session.get("user"), indent=4),
@@ -304,37 +320,37 @@ def admin():
 
 @main.route("/approve/<user_id>", methods=["POST"])
 @login_required
+@limiter.limit("5 per minute")
 @requires_role("admin")
 def approve_user_route(user_id):
     """Approves the user from the admin page and grants them access to the application."""
+    form = CSRFProtectionForm()
+    if not form.validate_on_submit():
+        flash("CSRF token validation failed", "error")
+        return redirect(url_for("main.admin"))
+    
     try:
         result = approve_user(user_id)
         flash(result["message"], "success")
     except ValueError as e:
         flash(str(e), "error")
+
     return redirect(url_for("main.admin"))
 
 
 @main.route("/reject/<user_id>", methods=["POST"])
 @login_required
+@limiter.limit("5 per minute")
 @requires_role("admin")
 def reject_user_route(user_id):
     """Rejects and removes user from the admin page."""
+    form = CSRFProtectionForm()
+    if not form.validate_on_submit():
+        flash("CSRF token validation failed", "error")
+        return redirect(url_for("main.admin"))
+    
     try:
         result = reject_user(user_id)
-        flash(result["message"], "success")
-    except ValueError as e:
-        flash(str(e), "error")
-    return redirect(url_for("main.admin"))
-
-
-@main.route("/delete/<user_id>", methods=["DELETE"])
-@login_required
-@requires_role("admin")
-def delete_user_route(user_id):
-    """Deletes a user from Auth0."""
-    try:
-        result = remove_user(user_id)
         flash(result["message"], "success")
     except ValueError as e:
         flash(str(e), "error")
