@@ -4,23 +4,23 @@
     <div class="container py-5">
         <h2 class="text-center mb-4">Dashboard</h2>
         <div class="card mb-4">
-            {% if lime_image_path or prediction_values %}  
-                {% if lime_image_path %}
+            {% if contributions_image_path or prediction_values %}  
+                {% if contributions_image_path %}
                     <div class="row g-0 d-flex align-items-center">
                         <div class="col-md-4 d-flex align-items-center">
                             <div class="card-body">
                                 <p class="card-text">
-                                    {{ lime_explanation }}
+                                    {{ contributions_explanation }}
                                 </p>
                             </div>
                         </div>
                         <div class="col-md-8">
-                            <img src="{{ url_for('static', filename='lime_plots/' + lime_image_path.split('/')[-1]) }}"
-                                 class="img-fluid" alt="LIME Plot">
+                            <img src="{{ url_for('static', filename=contributions_image_path.split('static/')[-1]) }}"
+                                 class="img-fluid" alt="Contributions Plot">
                         </div>
                     </div>
                 {% else %}
-                    <p class="m-3">No LIME plot available.</p>
+                    <p class="m-3">No Contributions plot available.</p>
                 {% endif %}
             
         </div>

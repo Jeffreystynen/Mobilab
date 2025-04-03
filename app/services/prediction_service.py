@@ -1,13 +1,13 @@
 import logging
-from app.helpers.input_params_helper import extract_form_features, map_features
+from app.helpers.input_params_helper import extract_form_features, map_features, process_h2o_contributions
 from app.services.database_service import get_all_models
 from app.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 
-def handle_prediction(features, selected_model, api_url="http://127.0.0.1:5000/api/predict"):
+def handle_prediction(features, selected_model):
     """
-    Handles the prediction process, including feature extraction, API calls, and result processing.
+    Handles the prediction process, including feature extraction and result processing.
     """
     try:
         # If features are passed as a list, map them directly
@@ -18,29 +18,15 @@ def handle_prediction(features, selected_model, api_url="http://127.0.0.1:5000/a
             features = extract_form_features(features)
             mapped_features = map_features(features)
 
-        # Prepare the payload for the prediction API
-        payload = {
+        # Return processed features and mapped features
+        return {
+            "success": True,
             "features": features,
-            "model": selected_model
+            "mapped_features": mapped_features
         }
-
-        # Call the prediction API using APIClient
-        response = APIClient.post(api_url, json=payload)
-
-        if "error" not in response:
-            return {
-                "success": True,
-                "prediction": response.get("prediction"),
-                "contributions": response.get("contributions"),
-                "contributions_image_path": response.get("contributions_image_path"),
-                "contributions_explanation": response.get("contributions_explanation"),
-                "mapped_features": mapped_features
-            }
-        else:
-            return {"success": False, "error": response["error"]}
     except Exception as e:
-        logger.error("Error during prediction", exc_info=True)
-        return {"success": False, "error": f"Error contacting prediction API: {str(e)}"}
+        logger.error("Error during feature processing", exc_info=True)
+        return {"success": False, "error": f"Error processing features: {str(e)}"}
 
 
 def fetch_models():

@@ -95,33 +95,42 @@ def process_h2o_contributions(h2o_data, feature_names):
     Processes the H2O AI contributions and plots them. Plots are used for the dashboard.
     """
     # Extract contributions and prediction
-    contributions = h2o_data.get("contributions", {})
+    contributions = h2o_data.get("contributions", {}).copy()  # Create a copy to avoid modifying the original
     prediction = h2o_data.get("prediction", 0)
 
-    # Convert contributions to a DataFrame
-    contributions_df = pd.DataFrame(list(contributions.items()), columns=['Feature', 'Importance'])
+    # Handle empty contributions
+    if not contributions:
+        default_text = "No contributions are available for this prediction."
+        return None, default_text
 
-    # Extract the BiasTerm and add it to all other contributions
-    bias_term = contributions_df[contributions_df['Feature'] == 'BiasTerm']['Importance'].values[0]
-    contributions_df = contributions_df[contributions_df['Feature'] != 'BiasTerm']
-    contributions_df['Importance'] += bias_term
+    # Extract the BiasTerm and remove it from the contributions
+    bias_term = contributions.pop("BiasTerm", 0)
 
-    # Sort so the highest importance is at the top
-    contributions_df = contributions_df.sort_values(by='Importance', ascending=False)
+    # Add the BiasTerm to all other contributions
+    adjusted_contributions = {feature: importance + bias_term for feature, importance in contributions.items()}
+
+    # Sort contributions by absolute importance
+    sorted_contributions = sorted(adjusted_contributions.items(), key=lambda x: abs(x[1]), reverse=True)
 
     # Assign colors based on the sign of importance
     def pick_color(value):
         return '#E73C0D' if value > 0 else '#0090A5'
 
-    contributions_df['Color'] = contributions_df['Importance'].apply(pick_color)
+    colors = [pick_color(importance) for _, importance in sorted_contributions]
 
     # Create a horizontal bar plot
+    features = [feature for feature, _ in sorted_contributions]
+    importances = [importance for _, importance in sorted_contributions]
+
+    if not importances:
+        return None, "No contributions are available for this prediction."
+
     fig, ax = plt.subplots(figsize=(8, 6))
-    bars = ax.barh(contributions_df['Feature'], contributions_df['Importance'], color=contributions_df['Color'])
+    bars = ax.barh(features, importances, color=colors)
     ax.invert_yaxis()  # So the largest bar is on top
 
     # Add annotations at the end of each bar
-    for bar in bars:
+    for bar, importance in zip(bars, importances):
         width = bar.get_width()
         yloc = bar.get_y() + bar.get_height() / 2
         if width > 0:
@@ -133,8 +142,8 @@ def process_h2o_contributions(h2o_data, feature_names):
         ax.text(xloc, yloc, f'{width:.2f}', va='center', ha=ha, fontsize=9)
 
     # Add a little horizontal margin so text isn't cut off
-    max_val = contributions_df['Importance'].max()
-    min_val = contributions_df['Importance'].min()
+    max_val = max(importances)
+    min_val = min(importances)
     margin = 0.1 * (max_val - min_val)  # 10% margin
     ax.set_xlim(min_val - margin, max_val + margin)
 
@@ -156,6 +165,6 @@ def process_h2o_contributions(h2o_data, feature_names):
     plt.close(fig)
 
     # Generate explanation text
-    text = generate_h2o_explanation_text(contributions, bias_term, prediction, feature_names)
+    explanation_text = generate_h2o_explanation_text(contributions, bias_term, prediction, feature_names)
 
-    return contributions_image_path, text
+    return contributions_image_path, explanation_text

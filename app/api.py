@@ -6,6 +6,7 @@ from app.helpers.manage_models_helper import *
 import shutil
 import tempfile
 from app.services.prediction_service import handle_prediction
+from app.services.api_client import APIClient
 
 
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -13,70 +14,51 @@ api = Blueprint('api', __name__, url_prefix='/api')
 @api.route('/predict', methods=["POST"])
 def predict_api():
     """
-    Predicts heart disease and returns a JSON response with prediction and LIME explanation.
-    ---
-    tags:
-      - Prediction API
-    consumes:
-      - application/json
-    produces:
-      - application/json
-    parameters:
-      - in: body
-        name: body
-        description: Input parameters for prediction.
-        required: true
-        schema:
-          type: object
-          properties:
-            features:
-              type: array
-              items:
-                type: number
-              example: [63, 1, 3, 145, 233, 1, 0, 150, 0, 2.3, 0, 0, 1]
-            model:
-              type: string
-              example: xgboost
-    responses:
-      200:
-        description: A JSON object containing the prediction and LIME explanation.
-        schema:
-          type: object
-          properties:
-            prediction:
-              type: integer
-              example: 0
-            lime_values:
-              type: object
-              example: {"feature1": 0.1, "feature2": -0.2}
-      400:
-        description: Invalid input
-      500:
-        description: Internal server error
+    Handles prediction requests by calling the external prediction service and processing the results.
     """
-    # Get JSON data from request
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No input data provided"}), 400
+    try:
+        # Extract features and model from the request
+        data = request.get_json()
+        features = data.get("features")
+        selected_model = data.get("model")
 
-    features = data.get("features")
-    selected_model = data.get("model")
+        # Process features
+        result = handle_prediction(features, selected_model)
+        if not result["success"]:
+            return jsonify({"error": result["error"]}), 400
 
-    if not features or selected_model:
-        return jsonify({"error": "Features and model are required for prediction"}), 400
+        # Prepare the payload for the external prediction API
+        payload = {
+            "features": result["features"],
+            "model": selected_model
+        }
 
-    # Call the prediction service
-    result = handle_prediction(features, selected_model, api_url="http://127.0.0.1:5001/predict")
+        # Call the external prediction API
+        api_url = "http://127.0.0.1:5001/predict"
+        response = APIClient.post(api_url, json=payload)
 
-    if result["success"]:
-        return jsonify({
-            "prediction": result["prediction"],
-            "contribution_values": result["contributions"],
-            "contribution_explanation": result["contributions_explanation"],
-            "contribution_image_path": result["contributions_image_path"]
-        })
-    else:
-        return jsonify({"error": result["error"]}), 500
+        if "error" not in response:
+            # Generate contributions plot and explanation
+            contributions = response.get("contributions", {})
+            prediction = response.get("prediction", 0)
+            feature_names = list(result["mapped_features"].keys())
+
+            contributions_image_path, contributions_explanation = process_h2o_contributions(
+                {"contributions": contributions, "prediction": prediction},
+                feature_names
+            )
+
+            return jsonify({
+                "prediction": prediction,
+                "contributions": contributions,
+                "contributions_image_path": contributions_image_path,
+                "contributions_explanation": contributions_explanation
+            })
+        else:
+            return jsonify({"error": response["error"]}), 500
+    except Exception as e:
+        logger.error("Error during prediction", exc_info=True)
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
 @api.route('/file_upload', methods=["POST"])

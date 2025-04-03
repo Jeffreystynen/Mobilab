@@ -19,6 +19,8 @@ from app.services.database_service import get_all_models, get_model_metrics, get
 from app.services.prediction_service import handle_prediction, fetch_models
 import secrets
 import logging
+from app.helpers.session_helper import store_prediction_results
+from app.services.form_service import process_prediction_form
 
 
 main = Blueprint('main', __name__)
@@ -93,8 +95,7 @@ def pending_approval():
 @login_required
 def input_params():
     """
-    Handles model interaction using a form. Sends the form parameters to the selected model for inference 
-    (default is xgboost), retrieves the model's prediction and SHAP plot, and stores these in the session.
+    Handles model interaction using a form. Sends the form parameters to the /predict API for inference.
     """
     prediction = None
     contributions_image_path = None
@@ -104,25 +105,28 @@ def input_params():
 
     # Handle form submission
     form = PredictionForm(request.form)
-    if request.method == "POST" and form.validate():
-        selected_model = request.form.get("model", "xgboost")
-        result = handle_prediction(form, selected_model)
+    if request.method == "POST":
+        try:
+            # Process the form and extract features
+            features = process_prediction_form(form)
+            selected_model = request.form.get("model") or (models[0] if models else None)
+            if not selected_model:
+                raise ValueError("No model available.")
 
-        if result["success"]:
-            # Store results in the session
-            session['prediction_values'] = result["mapped_features"]
-            session['prediction'] = result["prediction"]
-            session['contributions_image_path'] = result["contributions_image_path"]
-            session['contributions_explanation'] = result["contributions_explanation"]
-
-            prediction = result["prediction"]
-            contributions_image_path = result["contributions_image_path"]
-        else:
-            flash(result["error"], "input_params")
-    elif request.method == "POST" and not form.validate():
-        error_messages = "; ".join([f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()])
-        logger.info("Form error", exc_info=True)
-        flash(f"The form contains errors: {error_messages}", "input_params")
+            # Make a request to the /predict API
+            api_url = url_for("api.predict_api", _external=True)
+            response = requests.post(api_url, json={"features": features, "model": selected_model})
+            if response.status_code == 200:
+                result = response.json()
+                # Store results in the session
+                print(f"RESULT: {result}")
+                store_prediction_results(session, result, map_features(features))
+                prediction = result["prediction"]
+                contributions_image_path = result["contributions_image_path"]
+            else:
+                flash(response.json().get("error", "An error occurred"), "input_params")
+        except ValueError as e:
+            flash(str(e), "input_params")
 
     return render_template(
         "input_params.html",
@@ -140,15 +144,17 @@ def input_params():
 @login_required
 def dashboard():
     """Serves LIME plot and parameters used to make predictions from the last prediction."""
-    lime_image_path = session.get("lime_image_path", None)
+    contributions_image_path = session.get("contributions_image_path", None)
+    print(contributions_image_path)
     prediction_values = session.get("prediction_values", None)
-    lime_explanation = session.get("lime_explanation", None)
+    print(prediction_values)
+    contributions_explanation = session.get("contributions_explanation", None)
     return render_template(
         "dashboard.html",
         session=session.get("user"),
-        lime_image_path=lime_image_path,
+        contributions_image_path=contributions_image_path,
         prediction_values=prediction_values,
-        lime_explanation=lime_explanation,
+        contributions_explanation=contributions_explanation,
         pretty=json.dumps(session.get("user"), indent=4),
     )
 
@@ -201,80 +207,80 @@ def models():
     )
 
 
-@main.route("/manage models")
-@login_required
-@requires_role("admin")
-def manage_models():
-    try:
-        models_response = requests.get("http://127.0.0.1:5000/api/models")
-        if models_response.status_code == 200:
-            models = models_response.json()
-        else:
-            models = []
-    except Exception as e:
-        models = []
-    return render_template(
-            "manage_models.html",
-            models=models,
-            session=session.get("user"),
-            pretty=json.dumps(session.get("user"), indent=4),
-            page_name="upload_model"
-        )
+# @main.route("/manage models")
+# @login_required
+# @requires_role("admin")
+# def manage_models():
+#     try:
+#         models_response = requests.get("http://127.0.0.1:5000/api/models")
+#         if models_response.status_code == 200:
+#             models = models_response.json()
+#         else:
+#             models = []
+#     except Exception as e:
+#         models = []
+#     return render_template(
+#             "manage_models.html",
+#             models=models,
+#             session=session.get("user"),
+#             pretty=json.dumps(session.get("user"), indent=4),
+#             page_name="upload_model"
+#         )
 
 
-@main.route("/upload_model", methods=["POST"])
-@login_required
-@requires_role("admin")
-def upload_model():
-    model_name = request.form.get("modelName")
-    if not model_name:
-        flash("Please provide a model name.", "upload_model")
-        return redirect(url_for("main.manage_models"))
+# @main.route("/upload_model", methods=["POST"])
+# @login_required
+# @requires_role("admin")
+# def upload_model():
+#     model_name = request.form.get("modelName")
+#     if not model_name:
+#         flash("Please provide a model name.", "upload_model")
+#         return redirect(url_for("main.manage_models"))
 
-    if 'modelFile' not in request.files:
-        flash("No file uploaded, please upload a .zip file", "upload_model")
-        return redirect(url_for("main.manage_models"))
+#     if 'modelFile' not in request.files:
+#         flash("No file uploaded, please upload a .zip file", "upload_model")
+#         return redirect(url_for("main.manage_models"))
     
-    file = request.files['modelFile']
+#     file = request.files['modelFile']
     
-    # If no file is selected, flash an error
-    if file.filename == '':
-        flash("No file selected", "upload_model")
-        return redirect(url_for("main.manage_models"))
+#     # If no file is selected, flash an error
+#     if file.filename == '':
+#         flash("No file selected", "upload_model")
+#         return redirect(url_for("main.manage_models"))
     
-    try:
-        zip_path = process_zip_file(file, model_name)
-        response = send_model_to_api(zip_path, model_name)
-        if response.status_code != 200:
-            flash("Error uploading model: " + response.text, "upload_model")
-            logger.warning(f"Failed to upload model: {model_name}")
-        else:
-            logger.info(f"Model uploaded: {model_name}")
-            flash("Model uploaded successfully!", "upload_model")
-    except Exception as e:
-        logger.warning(f"Failed to upload model: {model_name}")
-        flash("An error occurred please try again: ", "upload_model")
+#     try:
+#         zip_path = process_zip_file(file, model_name)
+#         response = send_model_to_api(zip_path, model_name)
+#         if response.status_code != 200:
+#             flash("Error uploading model: " + response.text, "upload_model")
+#             logger.warning(f"Failed to upload model: {model_name}")
+#         else:
+#             logger.info(f"Model uploaded: {model_name}")
+#             flash("Model uploaded successfully!", "upload_model")
+#     except Exception as e:
+#         logger.warning(f"Failed to upload model: {model_name}")
+#         flash("An error occurred please try again: ", "upload_model")
     
-    return redirect(url_for("main.manage_models"))
+#     return redirect(url_for("main.manage_models"))
 
 
-@main.route("/remove_model", methods=["POST"])
-@login_required
-@requires_role("admin")
-def remove_model():
-    model_name = request.form.get('model_name')
-    try:
-        response = requests.delete(f"http://127.0.0.1:5000/api/delete_model/{model_name}")
-        if response.status_code != 200:
-            logger.warning(f"Failed to delete model: {model_name}")
-            flash("Error, could not delete model: " + response.text, "upload_model")
-        else:
-            logger.warning(f"Model deleted: {model_name}")
-            flash("Model deleted!", "upload_model")
-    except Exception as e:
-        logger.warning(f"Failed to delete model: {model_name}")
-        flash("An error occurred please try again: ", "upload_model")
-    return redirect(url_for('main.manage_models'))
+# @main.route("/remove_model", methods=["POST"])
+# @login_required
+# @requires_role("admin")
+# def remove_model():
+#     model_name = request.form.get('model_name')
+#     try:
+#         response = requests.delete(f"http://127.0.0.1:5000/api/delete_model/{model_name}")
+#         if response.status_code != 200:
+#             logger.warning(f"Failed to delete model: {model_name}")
+#             flash("Error, could not delete model: " + response.text, "upload_model")
+#         else:
+#             logger.warning(f"Model deleted: {model_name}")
+#             flash("Model deleted!", "upload_model")
+#     except Exception as e:
+#         logger.warning(f"Failed to delete model: {model_name}")
+#         flash("An error occurred please try again: ", "upload_model")
+#     return redirect(url_for('main.manage_models'))
 
 
 @main.route("/admin")
