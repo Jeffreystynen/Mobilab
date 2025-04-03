@@ -47,15 +47,14 @@ def create_app():
     @app.after_request
     def add_security_headers(response):
         """Add security headers to every response."""
-        # Content Security Policy (CSP)
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' https://*.auth0.com https://stackpath.bootstrapcdn.com; "
-            "style-src 'self' 'unsafe-inline' https://stackpath.bootstrapcdn.com; "
+            "style-src 'self' 'unsafe-inline' https://stackpath.bootstrapcdn.com https://cdnjs.cloudflare.com; "
             "img-src 'self' data: https://*.auth0.com; "
+            "font-src 'self' https://cdnjs.cloudflare.com https://stackpath.bootstrapcdn.com; "
             "frame-src 'self' https://*.auth0.com; "
-            "connect-src 'self' https://*.auth0.com; "
-            "font-src 'self' https://stackpath.bootstrapcdn.com;"
+            "connect-src 'self' https://*.auth0.com;"
         )
         
         # Prevent MIME type sniffing
