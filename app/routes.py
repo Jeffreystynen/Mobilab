@@ -355,3 +355,10 @@ def reject_user_route(user_id):
     except ValueError as e:
         flash(str(e), "error")
     return redirect(url_for("main.admin"))
+
+
+@main.route("/rate_limit_exceeded")
+@login_required
+def rate_limit_exceeded():
+    """Serves the rate limit exceeded page."""
+    return render_template("rate_limit_exceeded.html", session=session.get("user"))

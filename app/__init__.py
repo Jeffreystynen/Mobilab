@@ -1,8 +1,9 @@
-from flask import Flask, session
+from flask import Flask, session, flash, redirect, url_for
 from .config import Config
 from authlib.integrations.flask_client import OAuth
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_limiter.errors import RateLimitExceeded
 import os
 import logging
 from flask_wtf.csrf import CSRFProtect
@@ -82,6 +83,13 @@ def create_app():
         if user:
             roles = user.get("https://mobilab.demo.app.com/roles", [])
         return dict(user_roles=roles)
+    
+    @app.errorhandler(RateLimitExceeded)
+    def handle_ratelimit_error(e):
+        """Handle rate limit exceeded errors globally."""
+        flash("Too many requests. Please try again later.", "error")
+        return redirect(url_for("main.rate_limit_exceeded")), 429
+
 
     return app
 
