@@ -42,6 +42,38 @@ def create_app():
     }
     Swagger(app)
 
+    # Add security headers
+    @app.after_request
+    def add_security_headers(response):
+        """Add security headers to every response."""
+        # Content Security Policy (CSP)
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://*.auth0.com https://stackpath.bootstrapcdn.com; "
+            "style-src 'self' 'unsafe-inline' https://stackpath.bootstrapcdn.com; "
+            "img-src 'self' data: https://*.auth0.com; "
+            "frame-src 'self' https://*.auth0.com; "
+            "connect-src 'self' https://*.auth0.com; "
+            "font-src 'self' https://stackpath.bootstrapcdn.com;"
+        )
+        
+        # Prevent MIME type sniffing
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        
+        # Protection against clickjacking
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        
+        # Enable browser's XSS protection
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        
+        # Force HTTPS
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        
+        # Referrer Policy
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        
+        return response
+
     @app.context_processor
     def inject_user_roles():
         """Retrieves the user roles at startup."""
