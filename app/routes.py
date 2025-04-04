@@ -20,7 +20,7 @@ from app.services.prediction_service import fetch_models, process_prediction_req
 import secrets
 import logging
 from app.helpers.session_helper import store_prediction_results
-from app.services.form_service import process_prediction_form
+# from app.services.form_service import process_prediction_form
 from . import limiter
 
 
@@ -152,9 +152,7 @@ def input_params():
 def dashboard():
     """Serves LIME plot and parameters used to make predictions from the last prediction."""
     contributions_image_path = session.get("contributions_image_path", None)
-    print(contributions_image_path)
     prediction_values = session.get("prediction_values", None)
-    print(prediction_values)
     contributions_explanation = session.get("contributions_explanation", None)
     return render_template(
         "dashboard.html",
@@ -176,6 +174,7 @@ def models():
     """
     metrics = {}
     plots = {}
+    form = CSRFProtectionForm()
 
     # Fetch list of available models from the database service
     try:
@@ -211,6 +210,7 @@ def models():
         metrics=metrics,
         plots=plots,
         report=report,
+        form=form,
         page_name="models"
     )
 

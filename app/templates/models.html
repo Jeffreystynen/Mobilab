@@ -8,6 +8,7 @@
             <div class="card-body">
                 <h5 class="card-title">Select a Model</h5>
                 <form method="POST" class="d-flex align-items-center">
+                    {{ form.hidden_tag() }}
                     <div class="form-group d-flex align-items-center w-100">
                         <label for="modelSelect" class="mr-3">Model:</label>
                         <select id="modelSelect" name="model" class="form-control mr-3 col-sm-6" required>

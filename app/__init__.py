@@ -51,7 +51,7 @@ def create_app():
         """Add security headers to every response."""
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://*.auth0.com https://stackpath.bootstrapcdn.com; "
+            "script-src 'self' 'unsafe-inline' https://code.jquery.com https://cdn.jsdelivr.net https://stackpath.bootstrapcdn.com; "
             "style-src 'self' 'unsafe-inline' https://stackpath.bootstrapcdn.com https://cdnjs.cloudflare.com; "
             "img-src 'self' data: https://*.auth0.com; "
             "font-src 'self' https://cdnjs.cloudflare.com https://stackpath.bootstrapcdn.com; "
