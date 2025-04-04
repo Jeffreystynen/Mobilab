@@ -5,49 +5,40 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import shap
 import os
+from app.dao.model_dao import get_feature_mapping
+import json
 
 
-def extract_form_features(form):
-    """Extracts all features from the input parameters form."""
-    if isinstance(form, list):
-        features = form
+def extract_form_features(form, model_name):
+    """
+    Extracts and maps all features from the input parameters form dynamically.
+    
+    Args:
+        form (PredictionForm): The prediction form submitted by the user.
+        model_name (str): The name of the model.
 
-    features = [
-                int(form.age.data),
-                int(form.sex.data),
-                int(form.chest_pain_type.data),
-                int(form.resting_blood_pressure.data),
-                int(form.serum_cholesterol.data),
-                int(form.fasting_blood_sugar.data),
-                int(form.resting_electrocardiographic.data),
-                int(form.max_heart_rate.data),
-                int(form.exercise_induced_angina.data),
-                float(form.oldpeak.data),
-                int(form.slope_of_peak_st_segment.data),
-                int(form.num_major_vessels.data),
-                int(form.thal.data),
-            ] 
-    return features
-
-
-def map_features(features):
-    """Maps extraced form features in a dictionary."""
-    features_dict = {
-                'age': features[0],
-                'sex': features[1],
-                'chest_pain_type': features[2],
-                'resting_blood_pressure': features[3],
-                'serum_cholesterol': features[4],
-                'fasting_blood_sugar': features[5],
-                'resting_electrocardiographic': features[6],
-                'max_heart_rate': features[7],
-                'exercise_induced_angina': features[8],
-                'oldpeak': features[9],
-                'slope_of_peak_st_segment': features[10],
-                'num_major_vessels': features[11],
-                'thal': features[12]
-            }
-    return features_dict
+    Returns:
+        list: A list of features in the correct order for the model.
+    """
+    # Extract features from the form
+    input_features = {
+        "age": int(form.age.data),
+        "sex": int(form.sex.data),
+        "chest_pain_type": int(form.chest_pain_type.data),
+        "resting_blood_pressure": int(form.resting_blood_pressure.data),
+        "serum_cholesterol": int(form.serum_cholesterol.data),
+        "fasting_blood_sugar": int(form.fasting_blood_sugar.data),
+        "resting_electrocardiographic": int(form.resting_electrocardiographic.data),
+        "max_heart_rate": int(form.max_heart_rate.data),
+        "exercise_induced_angina": int(form.exercise_induced_angina.data),
+        "oldpeak": float(form.oldpeak.data),
+        "slope_of_peak_st_segment": int(form.slope_of_peak_st_segment.data),
+        "num_major_vessels": int(form.num_major_vessels.data),
+        "thal": int(form.thal.data),
+    }
+    # Validate and map features dynamically
+    ordered_features = validate_and_map_features(input_features, model_name)
+    return ordered_features
 
 
 def generate_h2o_explanation_text(contributions, bias_term, prediction, feature_names):
@@ -168,3 +159,26 @@ def process_h2o_contributions(h2o_data, feature_names):
     explanation_text = generate_h2o_explanation_text(contributions, bias_term, prediction, feature_names)
 
     return contributions_image_path, explanation_text
+
+
+def validate_and_map_features(input_features, model_name):
+    """
+    Validate and map input features to the expected format for the model.
+    """
+    # Fetch the feature mapping for the model
+    feature_mapping = get_feature_mapping(model_name)
+    if not feature_mapping or len(feature_mapping) == 0:
+        raise ValueError(f"No feature mapping found for model: {model_name}")
+
+    # Parse the JSON string
+    raw_mapping = feature_mapping[0]["featureMapping"]
+    parsed_mapping = json.loads(raw_mapping)
+
+    # Ensure all required features are present
+    required_features = set(parsed_mapping.values())
+    missing_features = required_features - set(input_features.keys())
+    if missing_features:
+        raise ValueError(f"Missing required features: {missing_features}")
+
+    # Return the validated dictionary of features
+    return {parsed_mapping[str(i)]: input_features[parsed_mapping[str(i)]] for i in range(len(parsed_mapping))}

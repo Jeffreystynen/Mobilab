@@ -58,3 +58,18 @@ def get_report(model_name):
             return cursor.fetchone()
     finally:
         conn.close()
+
+
+def get_feature_mapping(model_name):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+                SELECT m.featureMapping
+                FROM Model m
+                WHERE m.name = %s
+            """
+            cursor.execute(sql, (model_name,))
+            return cursor.fetchall()
+    finally:
+        conn.close()

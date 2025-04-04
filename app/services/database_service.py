@@ -1,4 +1,4 @@
-from app.dao.model_dao import get_models, get_metrics, get_plots, get_report
+from app.dao.model_dao import get_models, get_metrics, get_plots, get_report, get_feature_mapping
 import json
 
 def get_all_models():
@@ -40,3 +40,16 @@ def get_model_report(model_name):
     except json.JSONDecodeError as e:
         raise ValueError(f"Failed to parse report JSON: {e}")
     return report
+
+def get_feature_mapping(model_name):
+    """
+    Retrieve feature mapping for a specific model.
+    """
+    result = get_feature_mapping(model_name)
+    if not result or "feature_mapping" not in result:
+        raise ValueError(f"No feature mapping found for model '{model_name}'.")
+    try:
+        feature_mapping = json.loads(result["feature_mapping"])
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse feature mapping JSON: {e}")
+    return feature_mapping

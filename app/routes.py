@@ -4,7 +4,7 @@ from os import environ as env
 from urllib.parse import quote_plus, urlencode
 import requests
 from .form import PredictionForm, CSRFProtectionForm
-from app.helpers.input_params_helper import extract_form_features, map_features
+from app.helpers.input_params_helper import extract_form_features, validate_and_map_features, process_h2o_contributions
 from app import oauth
 from app.helpers.routes_helper import login_required, requires_role
 # from app.helpers.manage_models_helper import process_zip_file, send_model_to_api
@@ -16,7 +16,7 @@ from app.services.auth_service import (
     handle_auth_callback,
 )
 from app.services.database_service import get_all_models, get_model_metrics, get_model_plots, get_model_report
-from app.services.prediction_service import handle_prediction, fetch_models
+from app.services.prediction_service import fetch_models, process_prediction_request
 import secrets
 import logging
 from app.helpers.session_helper import store_prediction_results
@@ -98,7 +98,7 @@ def pending_approval():
 @limiter.limit("5 per minute")
 def input_params():
     """
-    Handles model interaction using a form. Sends the form parameters to the /predict API for inference.
+    Handles model interaction using a form.
     """
     prediction = None
     contributions_image_path = None
@@ -107,27 +107,31 @@ def input_params():
     models = fetch_models()
 
     # Handle form submission
-    form = PredictionForm(request.form)
-    if request.method == "POST":
+    form = PredictionForm()
+    if request.method == "POST" and form.validate_on_submit():
         try:
-            # Process the form and extract features
-            features = process_prediction_form(form)
+            # Get selected model
             selected_model = request.form.get("model") or (models[0] if models else None)
             if not selected_model:
                 raise ValueError("No model available.")
 
-            # Make a request to the /predict API
-            api_url = url_for("api.predict_api", _external=True)
-            response = requests.post(api_url, json={"features": features, "model": selected_model})
-            if response.status_code == 200:
-                result = response.json()
-                # Store results in the session
-                print(f"RESULT: {result}")
-                store_prediction_results(session, result, map_features(features))
+            # Process prediction request
+            result = process_prediction_request(form, selected_model)
+            
+            if result["success"]:
+                # Store results in session
+                store_prediction_results(
+                    session,
+                    result,
+                    result["features"],
+                    result["contributions_image_path"],
+                    result["explanation_text"]
+                )
                 prediction = result["prediction"]
-                contributions_image_path = result["contributions_image_path"]
+                # contributions_image_path = result["contributions_image_path"]
             else:
-                flash(response.json().get("error", "An error occurred"), "input_params")
+                flash(result["error"], "input_params")
+                
         except ValueError as e:
             flash(str(e), "input_params")
 
@@ -135,7 +139,6 @@ def input_params():
         "input_params.html",
         form=form,
         prediction=prediction,
-        contributions_image_path=contributions_image_path,
         models=models,
         session=session.get("user"),
         pretty=json.dumps(session.get("user"), indent=4),

@@ -5,7 +5,6 @@ from app.helpers.models_helper import *
 from app.helpers.manage_models_helper import *
 import shutil
 import tempfile
-from app.services.prediction_service import handle_prediction
 from app.services.api_client import APIClient
 
 
@@ -37,7 +36,7 @@ def predict_api():
               example: [63, 1, 3, 145, 233, 1, 0, 150, 0, 2.3, 0, 0, 1]
             model:
               type: string
-              example: xgboost
+              example: DRF_1_AutoML_5_20250327_133650
     responses:
       200:
         description: A JSON object containing the prediction and LIME explanation.
@@ -61,42 +60,22 @@ def predict_api():
         features = data.get("features")
         selected_model = data.get("model")
 
-        # Process features
-        result = handle_prediction(features, selected_model)
-        if not result["success"]:
-            return jsonify({"error": result["error"]}), 400
-
-        # Prepare the payload for the external prediction API
-        payload = {
-            "features": result["features"],
-            "model": selected_model
-        }
+        if not features or not selected_model:
+            return jsonify({"error": "Invalid input: features or model missing"}), 400
 
         # Call the external prediction API
         api_url = "http://127.0.0.1:5001/predict"
-        response = APIClient.post(api_url, json=payload)
+        response = APIClient.post(api_url, json={"features": features, "model": selected_model})
 
-        if "error" not in response:
-            # Generate contributions plot and explanation
-            contributions = response.get("contributions", {})
-            prediction = response.get("prediction", 0)
-            feature_names = list(result["mapped_features"].keys())
-
-            contributions_image_path, contributions_explanation = process_h2o_contributions(
-                {"contributions": contributions, "prediction": prediction},
-                feature_names
-            )
-
-            return jsonify({
-                "prediction": prediction,
-                "contributions": contributions,
-                "contributions_image_path": contributions_image_path,
-                "contributions_explanation": contributions_explanation
-            })
-        else:
+        if "error" in response:
             return jsonify({"error": response["error"]}), 500
+
+        # Return the raw prediction and contributions
+        return jsonify({
+            "prediction": response.get("prediction", 0),
+            "contributions": response.get("contributions", {})
+        })
     except Exception as e:
-        logger.error("Error during prediction", exc_info=True)
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 

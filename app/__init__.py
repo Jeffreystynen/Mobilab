@@ -16,6 +16,8 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
+csrf = CSRFProtect()
+
 def create_app():
     # Create a Flask app instance
     app = Flask(__name__)
@@ -24,7 +26,7 @@ def create_app():
     app.config.from_object(Config)
     
     # Initialize extensions
-    csrf = CSRFProtect(app)
+    csrf.init_app(app)
     oauth.init_app(app)
     limiter.init_app(app)  # Initialize limiter with app
 

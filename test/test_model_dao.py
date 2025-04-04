@@ -1,5 +1,5 @@
 import pytest
-from app.dao.model_dao import get_models, get_metrics, get_plots, get_report
+from app.dao.model_dao import get_models, get_metrics, get_plots, get_report, get_feature_mapping
 import json
 
 TEST_MODEL_NAME = "DRF_1_AutoML_5_20250327_133650"
@@ -62,3 +62,28 @@ def test_get_report_structure():
     expected_keys = ["class 0", "class 1", "accuracy", "macro avg", "weighted avg"]
     for key in expected_keys:
         assert key in report, f"Missing key '{key}' in the report."
+
+
+def test_get_feature_mapping():
+    """
+    Test that get_feature_mapping returns a dictionary with expected keys.
+    """
+    feature_mapping = get_feature_mapping(TEST_MODEL_NAME)
+    print(f"FEATURE MAPPING: {feature_mapping}")
+    
+    # Ensure the result is not None and is a list
+    assert feature_mapping is not None, "Feature mapping should not be None"
+    assert isinstance(feature_mapping, list), "Feature mapping should be a list"
+    assert len(feature_mapping) > 0, "Feature mapping should not be empty"
+
+    # Extract the first row and parse the JSON string
+    raw_mapping = feature_mapping[0]["featureMapping"]
+    try:
+        parsed_mapping = json.loads(raw_mapping)
+    except Exception as e:
+        pytest.fail(f"Feature mapping could not be loaded as JSON: {e}")
+
+    # Verify that the parsed mapping contains the expected keys
+    expected_keys = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+    for key in expected_keys:
+        assert key in parsed_mapping, f"Missing key '{key}' in feature mapping"

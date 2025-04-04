@@ -9,7 +9,7 @@ def validate_select(form, field):
         raise ValidationError("Please select a valid option.")
     field.data = int(field.data)
 
-class PredictionForm(Form):
+class PredictionForm(FlaskForm):
     """Handles validation of the form found on input parameters."""
     age = FloatField('Age', validators=[DataRequired(), NumberRange(min=0)])
 
