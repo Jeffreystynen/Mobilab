@@ -7,7 +7,7 @@ from .form import PredictionForm, CSRFProtectionForm
 from app.helpers.input_params_helper import extract_form_features, map_features
 from app import oauth
 from app.helpers.routes_helper import login_required, requires_role
-from app.helpers.manage_models_helper import process_zip_file, send_model_to_api
+# from app.helpers.manage_models_helper import process_zip_file, send_model_to_api
 from app.services.auth_service import (
     fetch_all_users,
     fetch_pending_approvals,
