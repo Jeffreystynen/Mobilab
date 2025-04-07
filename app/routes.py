@@ -4,7 +4,7 @@ from os import environ as env
 from urllib.parse import quote_plus, urlencode
 import requests
 from .form import PredictionForm, CSRFProtectionForm
-from app.helpers.input_params_helper import extract_form_features, validate_and_map_features, process_h2o_contributions
+# from app.helpers.input_params_helper import extract_form_features, validate_and_map_features, process_h2o_contributions
 from app import oauth
 from app.helpers.routes_helper import login_required, requires_role
 # from app.helpers.manage_models_helper import process_zip_file, send_model_to_api
@@ -15,7 +15,6 @@ from app.services.auth_service import (
     reject_user,
     handle_auth_callback,
 )
-from app.services.prediction_service import process_prediction_request
 import secrets
 import logging
 from app.helpers.session_helper import store_prediction_results
@@ -104,6 +103,8 @@ def input_params():
     # Fetch available models
     model_dao = app.model_dao
     models = model_dao.get_models()
+    prediction_service = app.prediction_service
+    feature_service = app.feature_service
 
 
     # Handle form submission
@@ -116,7 +117,7 @@ def input_params():
                 raise ValueError("No model available.")
 
             # Process prediction request
-            result = process_prediction_request(form, selected_model)
+            result = prediction_service.process_prediction_request(form, selected_model)
             
             if result["success"]:
                 # Store results in session
@@ -128,7 +129,6 @@ def input_params():
                     result["explanation_text"]
                 )
                 prediction = result["prediction"]
-                # contributions_image_path = result["contributions_image_path"]
             else:
                 flash(result["error"], "input_params")
                 

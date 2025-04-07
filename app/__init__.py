@@ -8,6 +8,10 @@ import os
 import logging
 from flask_wtf.csrf import CSRFProtect
 from app.dao.model_dao import ModelDAO
+from app.services.feature_service import FeatureService
+from app.services.prediction_service import PredictionService
+from app.services.api_client import APIClient
+
 
 # Initialize extensions
 oauth = OAuth()
@@ -24,6 +28,14 @@ def create_app():
     app = Flask(__name__)
     model_dao = ModelDAO()
     app.model_dao = model_dao
+
+    feature_service = FeatureService(model_dao)
+    api_client = APIClient()
+    prediction_service = PredictionService(api_client, feature_service)
+
+    app.feature_service = feature_service
+    app.prediction_service = prediction_service
+
     # Load configuration
     app.config.from_object(Config)
     
@@ -36,8 +48,6 @@ def create_app():
     from .routes import main
     app.register_blueprint(main)
 
-    from .api import api as api_blueprint
-    app.register_blueprint(api_blueprint)
 
     # Initialize Swagger for API documentation
     from flasgger import Swagger
