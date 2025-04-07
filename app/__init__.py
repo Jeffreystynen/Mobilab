@@ -7,6 +7,7 @@ from flask_limiter.errors import RateLimitExceeded
 import os
 import logging
 from flask_wtf.csrf import CSRFProtect
+from app.dao.model_dao import ModelDAO
 
 # Initialize extensions
 oauth = OAuth()
@@ -21,7 +22,8 @@ csrf = CSRFProtect()
 def create_app():
     # Create a Flask app instance
     app = Flask(__name__)
-    
+    model_dao = ModelDAO()
+    app.model_dao = model_dao
     # Load configuration
     app.config.from_object(Config)
     

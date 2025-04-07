@@ -5,8 +5,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import shap
 import os
-from app.dao.model_dao import get_feature_mapping
 import json
+from flask import current_app as app
+
 
 
 def extract_form_features(form, model_name):
@@ -165,8 +166,9 @@ def validate_and_map_features(input_features, model_name):
     """
     Validate and map input features to the expected format for the model.
     """
+    model_dao = app.model_dao
     # Fetch the feature mapping for the model
-    feature_mapping = get_feature_mapping(model_name)
+    feature_mapping = model_dao.get_feature_mapping(model_name)
     if not feature_mapping or len(feature_mapping) == 0:
         raise ValueError(f"No feature mapping found for model: {model_name}")
 

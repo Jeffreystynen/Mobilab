@@ -4,25 +4,9 @@ from app.helpers.input_params_helper import (
     process_h2o_contributions, 
     validate_and_map_features
 )
-from app.services.database_service import get_all_models
 from app.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
-
-
-def fetch_models():
-    """
-    Fetches the list of available models from the API.
-    """
-    try:
-        models = get_all_models()
-        if not models:
-            logger.info("No models found.")
-            return []
-        return models
-    except Exception as e:
-        logger.error("Error fetching models", exc_info=True)
-        return []
 
 
 def make_prediction(features, selected_model):

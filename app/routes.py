@@ -15,13 +15,12 @@ from app.services.auth_service import (
     reject_user,
     handle_auth_callback,
 )
-from app.services.database_service import get_all_models, get_model_metrics, get_model_plots, get_model_report
-from app.services.prediction_service import fetch_models, process_prediction_request
+from app.services.prediction_service import process_prediction_request
 import secrets
 import logging
 from app.helpers.session_helper import store_prediction_results
-# from app.services.form_service import process_prediction_form
 from . import limiter
+from flask import current_app as app
 
 
 main = Blueprint('main', __name__)
@@ -101,10 +100,11 @@ def input_params():
     Handles model interaction using a form.
     """
     prediction = None
-    contributions_image_path = None
 
     # Fetch available models
-    models = fetch_models()
+    model_dao = app.model_dao
+    models = model_dao.get_models()
+
 
     # Handle form submission
     form = PredictionForm()
@@ -175,10 +175,11 @@ def models():
     metrics = {}
     plots = {}
     form = CSRFProtectionForm()
+    model_dao = app.model_dao
 
     # Fetch list of available models from the database service
     try:
-        models = get_all_models()
+        models = model_dao.get_models()
     except ValueError as e:
         flash(f"Error fetching models: {str(e)}", "models")
         models = []
@@ -193,9 +194,11 @@ def models():
 
     try:
         # Fetch metrics and plots for the selected model
-        metrics = get_model_metrics(selected_model)
-        plots = get_model_plots(selected_model)
-        report = get_model_report(selected_model)
+        metrics = model_dao.get_metrics(selected_model)
+        plots = model_dao.get_plots(selected_model)
+        report = model_dao.get_report(selected_model)["report"]
+        report = json.loads(report)
+        print(report)
         if "trainingShape" in metrics:
             metrics["trainingShape"] = json.loads(metrics["trainingShape"])
   
