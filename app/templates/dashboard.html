@@ -4,6 +4,7 @@
     <div class="container py-5">
         <h2 class="text-center mb-4">Dashboard</h2>
         <div class="card mb-4">
+            <a href="{{ url_for('main.download_report') }}" class="btn btn-primary mt-3">Download Report as PDF</a>
             {% if contributions_image_path or prediction_values %}  
                 {% if contributions_image_path %}
                     <div class="row g-0 d-flex align-items-center">

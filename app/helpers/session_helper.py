@@ -1,4 +1,4 @@
-def store_prediction_results(session, result, features, contributions_image_path, explanation_text):
+def store_prediction_results(session, result, features, contributions_image_path, explanation_text, model):
     """
     Stores prediction results in the session.
     """
@@ -6,3 +6,4 @@ def store_prediction_results(session, result, features, contributions_image_path
     session['prediction'] = result.get("prediction")
     session['contributions_image_path'] = contributions_image_path
     session['contributions_explanation'] = explanation_text
+    session['model'] = model

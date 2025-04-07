@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, make_response
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
@@ -20,6 +20,8 @@ import logging
 from app.helpers.session_helper import store_prediction_results
 from . import limiter
 from flask import current_app as app
+from app.helpers.report_builder import ReportBuilder, ReportDirector
+from app.helpers.pdf_generator import generate_pdf
 
 
 main = Blueprint('main', __name__)
@@ -126,7 +128,8 @@ def input_params():
                     result,
                     result["features"],
                     result["contributions_image_path"],
-                    result["explanation_text"]
+                    result["explanation_text"],
+                    selected_model
                 )
                 prediction = result["prediction"]
             else:
@@ -162,6 +165,39 @@ def dashboard():
         contributions_explanation=contributions_explanation,
         pretty=json.dumps(session.get("user"), indent=4),
     )
+
+
+@main.route("/download_report", methods=["GET"])
+@login_required
+@limiter.limit("5 per minute")
+def download_report():
+    """Generate and download the prediction report as a PDF."""
+    model_dao = app.model_dao
+    model = session.get("model", None)
+    # Example data
+    prediction = session.get("prediction_values", {}).get("prediction", 1)
+    explanation = session.get("contributions_explanation", "No explanation available.")
+    contribution_image_path = session.get("contributions_image_path", None)
+    print(contribution_image_path)
+    parameters = session.get("prediction_values", {})
+    metadata = model_dao.get_metrics(model)
+    plots = model_dao.get_plots(model)
+    report = model_dao.get_report(model)["report"]
+    report = json.loads(report)
+    form = PredictionForm()
+    # Build the report
+    builder = ReportBuilder()
+    director = ReportDirector(builder)
+    pdf_report = director.build_pdf_report(explanation, contribution_image_path, parameters, form, metadata, plots, report)
+
+    # Generate the PDF
+    pdf = generate_pdf(pdf_report)
+
+    # Return the PDF as a response
+    response = make_response(pdf)
+    response.headers["Content-Type"] = "application/pdf"
+    response.headers["Content-Disposition"] = "inline; filename=report.pdf"
+    return response
 
 
 @main.route("/models", methods=["GET", "POST"])
