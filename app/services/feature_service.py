@@ -76,6 +76,8 @@ class FeatureService:
 
         # Ensure all required features are present
         required_features = set(parsed_mapping.values())
+        print(f"required_features: {required_features}")
+        print(f"input_features: {input_features}")
         missing_features = required_features - set(input_features.keys())
         if missing_features:
             raise ValueError(f"Missing required features: {missing_features}")

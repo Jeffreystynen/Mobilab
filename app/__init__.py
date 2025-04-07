@@ -7,10 +7,7 @@ from flask_limiter.errors import RateLimitExceeded
 import os
 import logging
 from flask_wtf.csrf import CSRFProtect
-from app.dao.model_dao import ModelDAO
-from app.services.feature_service import FeatureService
-from app.services.prediction_service import PredictionService
-from app.services.api_client import APIClient
+from app.factories.service_factory import ServiceFactory
 
 
 # Initialize extensions
@@ -26,15 +23,9 @@ csrf = CSRFProtect()
 def create_app():
     # Create a Flask app instance
     app = Flask(__name__)
-    model_dao = ModelDAO()
-    app.model_dao = model_dao
-
-    feature_service = FeatureService(model_dao)
-    api_client = APIClient()
-    prediction_service = PredictionService(api_client, feature_service)
-
-    app.feature_service = feature_service
-    app.prediction_service = prediction_service
+    app.model_dao = ServiceFactory.create_model_dao()
+    app.feature_service = ServiceFactory.create_feature_service()
+    app.prediction_service = ServiceFactory.create_prediction_service()
 
     # Load configuration
     app.config.from_object(Config)

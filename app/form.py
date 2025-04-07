@@ -5,9 +5,12 @@ from flask_wtf import FlaskForm
 
 def validate_select(form, field):
     """Handles validation for dropdowns on the form."""
-    if field.data == '':
+    if field.data == '' or field.data is None:
         raise ValidationError("Please select a valid option.")
-    field.data = int(field.data)
+    try:
+        field.data = int(field.data)
+    except ValueError:
+        raise ValidationError("Invalid value selected.")
 
 class PredictionForm(FlaskForm):
     """Handles validation of the form found on input parameters."""
