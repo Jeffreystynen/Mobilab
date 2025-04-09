@@ -44,14 +44,6 @@ def create_app():
     app.register_blueprint(main)
 
 
-    # Initialize Swagger for API documentation
-    from flasgger import Swagger
-    app.config['SWAGGER'] = {
-        'title': 'My API',
-        'uiversion': 3
-    }
-    Swagger(app)
-
     # Add security headers
     @app.after_request
     def add_security_headers(response):
