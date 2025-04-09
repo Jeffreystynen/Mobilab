@@ -20,6 +20,7 @@ from . import limiter
 from flask import current_app as app
 from app.helpers.report_builder import ReportBuilder, ReportDirector
 from app.helpers.pdf_generator import generate_pdf
+from app.error_handlers import flash_form_errors
 
 
 main = Blueprint('main', __name__)
@@ -141,6 +142,8 @@ def input_params():
         except ValueError as e:
             logger.error(f"Error processing prediction: {str(e)}", exc_info=True)
             flash(str(e), "input_params")
+    else:
+        flash_form_errors(form)
 
     return render_template(
         "input_params.html",
