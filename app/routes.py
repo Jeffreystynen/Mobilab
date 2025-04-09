@@ -219,8 +219,6 @@ def models():
     Serves statistics and plots about the served model, including accuracy, precision, recall, training shape,
     ROC curve, P/R curve, and SHAP summary plot.
     """
-    metrics = {}
-    plots = {}
     form = CSRFProtectionForm()
     model_dao = app.model_dao
 
@@ -245,21 +243,27 @@ def models():
         plots = model_dao.get_plots(selected_model)
         report = model_dao.get_report(selected_model)["report"]
         report = json.loads(report)
-        print(report)
-        if "trainingShape" in metrics:
-            metrics["trainingShape"] = json.loads(metrics["trainingShape"])
+
   
-        print(metrics)
     except ValueError as e:
         flash(f"Error retrieving information for {selected_model}: {str(e)}", "models")
-    print(models)
+
+    builder = ReportBuilder()
+    director = ReportDirector(builder)
+    model_report = director.build_model_report(metrics, plots, report)
+
+    metrics_content = next((section["content"] for section in model_report.get_sections() if section["title"] == "Model Metadata"), "")
+    plots_content = next((section["content"] for section in model_report.get_sections() if section["title"] == "Model Plots"), "")
+    report_content = next((section["content"] for section in model_report.get_sections() if section["title"] == "Model Report"), "")
+    print(metrics_content)
+
     return render_template(
         "models.html",
         models=models,
         selected_model=selected_model,
-        metrics=metrics,
-        plots=plots,
-        report=report,
+        metrics=metrics_content,
+        plots=plots_content,
+        report=report_content,
         form=form,
         page_name="models"
     )

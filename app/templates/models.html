@@ -45,40 +45,7 @@
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">Metrics</h5>
-                            {% if metrics %}
-                                <table class="table table-striped table-bordered">
-                                    <thead class="thead-dark">
-                                        <tr>
-                                            <th>Parameter</th>
-                                            <th>Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for key, value in metrics.items() %}
-                                            <tr>
-                                                <td>
-                                                    {% if key == "createdAt" %}
-                                                        Created At
-                                                    {% elif key == "trainingShape" %}
-                                                        Training Shape
-                                                    {% else %}
-                                                        {{ key|replace('_', ' ')|title }}
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    {% if key == "trainingShape" %}
-                                                        Rows: {{ value.rows }}, Columns: {{ value.columns }}
-                                                    {% else %}
-                                                        {{ value }}
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            {% else %}
-                                <p>No metrics available for the selected model.</p>
-                            {% endif %}
+                            {{ metrics | safe }}
                         </div>
                     </div>
                 </div>
@@ -88,35 +55,7 @@
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">Plots</h5>
-                            {% if plots %}
-                                <div class="container mt-4">
-                                    <div class="row">
-                                        {% for plot_name, plot_url in plots.items() %}
-                                            <div class="col-md-6">
-                                                <div class="card mb-4">
-                                                    <img src="{{ plot_url }}" class="card-img-top" alt="{{ plot_name }}">
-                                                    <div class="card-body">
-                                                        <h5 class="card-title">{{ plot_name|replace('.png', '')|replace('_', ' ')|title }}</h5>
-                                                        <p class="card-text">
-                                                            {% if 'roc' in plot_name.lower() %}
-                                                                This ROC Curve shows the trade-off between sensitivity and specificity.
-                                                            {% elif 'pr' in plot_name.lower() %}
-                                                                The Precision-Recall Curve helps evaluate model performance under class imbalance.
-                                                            {% elif 'shap' in plot_name.lower() %}
-                                                                The SHAP summary explains which features impact the model's decisions the most.
-                                                            {% else %}
-                                                                This plot visualizes an important aspect of the model.
-                                                            {% endif %}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            {% else %}
-                                <p>No plots available for the selected model.</p>
-                            {% endif %}
+                            {{ plots | safe }}
                         </div>
                     </div>
                 </div>
@@ -126,54 +65,7 @@
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">Classification Report</h5>
-                            {% if report %}
-                                <table class="table table-striped table-bordered">
-                                    <thead class="thead-dark">
-                                        <tr>
-                                            <th>Class</th>
-                                            <th>Precision</th>
-                                            <th>Recall</th>
-                                            <th>F1-Score</th>
-                                            <th>Support</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for class_name, metrics in report.items() %}
-                                            {% if class_name not in ["accuracy", "macro avg", "weighted avg"] %}
-                                                <tr>
-                                                    <td>{{ class_name }}</td>
-                                                    <td>{{ metrics.precision }}</td>
-                                                    <td>{{ metrics.recall }}</td>
-                                                    <td>{{ metrics["f1-score"] }}</td>
-                                                    <td>{{ metrics.support }}</td>
-                                                </tr>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Accuracy</th>
-                                            <td colspan="4">{{ report.accuracy }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Macro Avg</th>
-                                            <td>{{ report["macro avg"].precision }}</td>
-                                            <td>{{ report["macro avg"].recall }}</td>
-                                            <td>{{ report["macro avg"]["f1-score"] }}</td>
-                                            <td>{{ report["macro avg"].support }}</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Weighted Avg</th>
-                                            <td>{{ report["weighted avg"].precision }}</td>
-                                            <td>{{ report["weighted avg"].recall }}</td>
-                                            <td>{{ report["weighted avg"]["f1-score"] }}</td>
-                                            <td>{{ report["weighted avg"].support }}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            {% else %}
-                                <p>No classification report available for the selected model.</p>
-                            {% endif %}
+                            {{ report | safe }}
                         </div>
                     </div>
                 </div>

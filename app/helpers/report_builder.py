@@ -1,4 +1,5 @@
 from flask import url_for
+import json
 
 class Report:
     """The complex object that is being built."""
@@ -96,6 +97,9 @@ class ReportBuilder:
             </thead>
             <tbody>
         """
+        if "trainingShape" in metadata:
+            if isinstance(metadata["trainingShape"], str):
+                metadata["trainingShape"] = json.loads(metadata["trainingShape"])
         for key, value in metadata.items():
             # Handle the trainingShape key specifically
             if key == "trainingShape" and isinstance(value, dict):
@@ -200,6 +204,13 @@ class ReportDirector:
         self.builder.add_prediction_results(explanation)
         self.builder.add_feature_importance_plot(contribution_image_path)
         self.builder.add_input_parameters(parameters, form)
+        self.builder.add_model_metadata(metadata)
+        self.builder.add_model_plots(plots)
+        self.builder.add_model_report(report)
+        return self.builder.get_report()
+    
+    def build_model_report(self, metadata, plots, report):
+        """Build a model report."""
         self.builder.add_model_metadata(metadata)
         self.builder.add_model_plots(plots)
         self.builder.add_model_report(report)
