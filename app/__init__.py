@@ -8,6 +8,8 @@ import os
 import logging
 from flask_wtf.csrf import CSRFProtect
 from app.factories.service_factory import ServiceFactory
+from app.helpers.env_validator import validate_env_vars
+from app.error_handlers import register_error_handlers
 
 
 # Initialize extensions
@@ -22,6 +24,7 @@ csrf = CSRFProtect()
 
 def create_app():
     # Create a Flask app instance
+    validate_env_vars()
     app = Flask(__name__)
     app.model_dao = ServiceFactory.create_model_dao()
     app.feature_service = ServiceFactory.create_feature_service()
@@ -29,11 +32,12 @@ def create_app():
 
     # Load configuration
     app.config.from_object(Config)
-    
+
     # Initialize extensions
     csrf.init_app(app)
     oauth.init_app(app)
-    limiter.init_app(app)  # Initialize limiter with app
+    limiter.init_app(app)
+    register_error_handlers(app)
 
     # Import and register blueprints
     from .routes import main

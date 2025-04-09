@@ -4,10 +4,8 @@ from os import environ as env
 from urllib.parse import quote_plus, urlencode
 import requests
 from .form import PredictionForm, CSRFProtectionForm
-# from app.helpers.input_params_helper import extract_form_features, validate_and_map_features, process_h2o_contributions
 from app import oauth
 from app.helpers.routes_helper import login_required, requires_role
-# from app.helpers.manage_models_helper import process_zip_file, send_model_to_api
 from app.services.auth_service import (
     fetch_all_users,
     fetch_pending_approvals,
@@ -66,6 +64,7 @@ def callback():
         flash(result["message"], "success")
         return redirect(url_for("main.input_params"))
     except ValueError as e:
+        logger.error(f"Error in callback: {str(e)}", exc_info=True)
         flash(str(e), "warning")
         return redirect(url_for("main.pending_approval"))
 
@@ -102,12 +101,16 @@ def input_params():
     """
     prediction = None
 
-    # Fetch available models
-    model_dao = app.model_dao
-    models = model_dao.get_models()
-    prediction_service = app.prediction_service
-    feature_service = app.feature_service
-
+    try:
+        # Fetch available models
+        model_dao = app.model_dao
+        models = model_dao.get_models()
+        prediction_service = app.prediction_service
+        feature_service = app.feature_service
+    except Exception as e:
+        logger.error(f"Error fetching models: {str(e)}", exc_info=True)
+        flash("Failed to load models. Please try again later.", "danger")
+        models = []
 
     # Handle form submission
     form = PredictionForm()
@@ -136,6 +139,7 @@ def input_params():
                 flash(result["error"], "input_params")
                 
         except ValueError as e:
+            logger.error(f"Error processing prediction: {str(e)}", exc_info=True)
             flash(str(e), "input_params")
 
     return render_template(
@@ -222,31 +226,24 @@ def models():
     form = CSRFProtectionForm()
     model_dao = app.model_dao
 
-    # Fetch list of available models from the database service
     try:
         models = model_dao.get_models()
-    except ValueError as e:
-        flash(f"Error fetching models: {str(e)}", "models")
+    except Exception as e:
+        logger.error(f"Error fetching models: {str(e)}", exc_info=True)
+        flash("Failed to load models. Please try again later.", "danger")
         models = []
 
-    selected_model = None
-    if request.method == "POST":
-        selected_model = request.form.get("model")
-    
-    # If no model is selected, default to the first model in the list
-    if not selected_model:
-        selected_model = models[0] if models else "No models available"
+    selected_model = request.form.get("model") if request.method == "POST" else None
+    selected_model = selected_model or (models[0] if models else "No models available")
 
     try:
-        # Fetch metrics and plots for the selected model
         metrics = model_dao.get_metrics(selected_model)
         plots = model_dao.get_plots(selected_model)
-        report = model_dao.get_report(selected_model)["report"]
-        report = json.loads(report)
-
-  
-    except ValueError as e:
-        flash(f"Error retrieving information for {selected_model}: {str(e)}", "models")
+        report = json.loads(model_dao.get_report(selected_model)["report"])
+    except Exception as e:
+        logger.error(f"Error fetching model data for {selected_model}: {str(e)}", exc_info=True)
+        flash(f"Error retrieving information for {selected_model}.", "danger")
+        metrics, plots, report = {}, {}, {}
 
     builder = ReportBuilder()
     director = ReportDirector(builder)
@@ -255,7 +252,6 @@ def models():
     metrics_content = next((section["content"] for section in model_report.get_sections() if section["title"] == "Model Metadata"), "")
     plots_content = next((section["content"] for section in model_report.get_sections() if section["title"] == "Model Plots"), "")
     report_content = next((section["content"] for section in model_report.get_sections() if section["title"] == "Model Report"), "")
-    print(metrics_content)
 
     return render_template(
         "models.html",
@@ -267,82 +263,6 @@ def models():
         form=form,
         page_name="models"
     )
-
-
-# @main.route("/manage models")
-# @login_required
-# @requires_role("admin")
-# def manage_models():
-#     try:
-#         models_response = requests.get("http://127.0.0.1:5000/api/models")
-#         if models_response.status_code == 200:
-#             models = models_response.json()
-#         else:
-#             models = []
-#     except Exception as e:
-#         models = []
-#     return render_template(
-#             "manage_models.html",
-#             models=models,
-#             session=session.get("user"),
-#             pretty=json.dumps(session.get("user"), indent=4),
-#             page_name="upload_model"
-#         )
-
-
-# @main.route("/upload_model", methods=["POST"])
-# @login_required
-# @requires_role("admin")
-# def upload_model():
-#     model_name = request.form.get("modelName")
-#     if not model_name:
-#         flash("Please provide a model name.", "upload_model")
-#         return redirect(url_for("main.manage_models"))
-
-#     if 'modelFile' not in request.files:
-#         flash("No file uploaded, please upload a .zip file", "upload_model")
-#         return redirect(url_for("main.manage_models"))
-    
-#     file = request.files['modelFile']
-    
-#     # If no file is selected, flash an error
-#     if file.filename == '':
-#         flash("No file selected", "upload_model")
-#         return redirect(url_for("main.manage_models"))
-    
-#     try:
-#         zip_path = process_zip_file(file, model_name)
-#         response = send_model_to_api(zip_path, model_name)
-#         if response.status_code != 200:
-#             flash("Error uploading model: " + response.text, "upload_model")
-#             logger.warning(f"Failed to upload model: {model_name}")
-#         else:
-#             logger.info(f"Model uploaded: {model_name}")
-#             flash("Model uploaded successfully!", "upload_model")
-#     except Exception as e:
-#         logger.warning(f"Failed to upload model: {model_name}")
-#         flash("An error occurred please try again: ", "upload_model")
-    
-#     return redirect(url_for("main.manage_models"))
-
-
-# @main.route("/remove_model", methods=["POST"])
-# @login_required
-# @requires_role("admin")
-# def remove_model():
-#     model_name = request.form.get('model_name')
-#     try:
-#         response = requests.delete(f"http://127.0.0.1:5000/api/delete_model/{model_name}")
-#         if response.status_code != 200:
-#             logger.warning(f"Failed to delete model: {model_name}")
-#             flash("Error, could not delete model: " + response.text, "upload_model")
-#         else:
-#             logger.warning(f"Model deleted: {model_name}")
-#             flash("Model deleted!", "upload_model")
-#     except Exception as e:
-#         logger.warning(f"Failed to delete model: {model_name}")
-#         flash("An error occurred please try again: ", "upload_model")
-#     return redirect(url_for('main.manage_models'))
 
 
 @main.route("/admin", methods=["GET", "POST"])
@@ -418,4 +338,4 @@ def reject_user_route(user_id):
 @login_required
 def rate_limit_exceeded():
     """Serves the rate limit exceeded page."""
-    return render_template("rate_limit_exceeded.html", session=session.get("user"))
+    return render_template("errors/rate_limit_exceeded.html", session=session.get("user"))

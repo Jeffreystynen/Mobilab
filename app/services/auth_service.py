@@ -7,11 +7,9 @@ from app.helpers.auth0_helper import (
 from flask import session
 import logging
 import requests
-from dotenv import load_dotenv
 import os
 
 
-load_dotenv() 
 logger = logging.getLogger(__name__)
 
 
