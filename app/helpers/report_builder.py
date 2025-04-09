@@ -25,17 +25,27 @@ class ReportBuilder:
         if not explanation:
             content = "<p>No explanation available for the prediction.</p>"
         else:
-            content = f"<p>{explanation}</p>"
+            content = f"""
+            <div class="card-body">
+                <p class="card-text">{explanation}</p>
+            </div>
+            """
         self.report.add_section("", content)
 
     def add_feature_importance_plot(self, plot_path):
         """Add feature importance plot to the report."""
         if not plot_path:
-            content = "<p>No feature importance plot available.</p>"
+            content = "<p>No Contributions plot available.</p>"
         else:
             # Convert the relative path to an absolute URL
             absolute_url = url_for('static', filename=plot_path.split('static/')[-1], _external=True)
-            content = f"<img src='{absolute_url}' alt='Feature Importance Plot' style='max-width: 100%;'>"
+            content = f"""
+            <div class="row g-0 d-flex align-items-center">
+                <div class="col-12">
+                    <img src="{absolute_url}" class="img-fluid" alt="Contributions Plot" style="width: 100%; height: auto;">
+                </div>
+            </div>
+            """
         self.report.add_section("Feature Importance", content)
     
     def add_feature_importance_plot_explanation(self, explanation):
@@ -46,14 +56,15 @@ class ReportBuilder:
     def add_input_parameters(self, parameters, form):
         """Add input parameters to the report."""
         content = """
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
-            <thead>
-                <tr style="background-color: #f2f2f2;">
-                    <th style="border: 1px solid #ddd; padding: 8px;">Parameter</th>
-                    <th style="border: 1px solid #ddd; padding: 8px;">Value</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div>
+            <table class="table table-striped table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
         """
         for key, value in parameters.items():
             # Check if the field exists in the form and has choices
@@ -62,12 +73,16 @@ class ReportBuilder:
                 value = dict(form[key].choices).get(str(value), value)
             content += f"""
             <tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">{key.replace('_', ' ').title()}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">{value}</td>
+                <td>{key.replace('_', ' ')}</td>
+                <td>{value}</td>
             </tr>
             """
-        content += "</tbody></table>"
-        self.report.add_section("Input Parameters", content)
+        content += """
+                </tbody>
+            </table>
+        </div>
+        """
+        self.report.add_section("Prediction Input Values", content)
 
     def add_model_metadata(self, metadata):
         """Add model metadata to the report."""
@@ -82,6 +97,9 @@ class ReportBuilder:
             <tbody>
         """
         for key, value in metadata.items():
+            # Handle the trainingShape key specifically
+            if key == "trainingShape" and isinstance(value, dict):
+                value = f"Rows: {value.get('rows', 'N/A')}, Columns: {value.get('columns', 'N/A')}"
             content += f"""
             <tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">{key.replace('_', ' ').title()}</td>
@@ -93,7 +111,17 @@ class ReportBuilder:
 
     def add_model_plots(self, plots):
         """Add model plots to the report."""
-        content = "".join([f"<h5>{name}</h5><img src='{url}' alt='{name}' style='max-width: 100%;'>" for name, url in plots.items()])
+        content = ""
+        for name, path in plots.items():
+            # Ensure the path is relative to the static directory
+            relative_path = path.split("static/")[-1] if "static/" in path else path
+            absolute_url = url_for('static', filename=relative_path, _external=True)
+            content += f"""
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h5>{name.replace('_', ' ').title()}</h5>
+                <img src="{absolute_url}" alt="{name}" style="max-width: 100%; height: auto;">
+            </div>
+            """
         self.report.add_section("Model Plots", content)
 
     def add_model_report(self, report):
@@ -161,11 +189,10 @@ class ReportDirector:
     def __init__(self, builder):
         self.builder = builder
 
-    def build_web_report(self, prediction, explanation, parameters, plot_path):
+    def build_web_report(self, parameters, plot_path, form):
         """Build a web-based report."""
-        self.builder.add_prediction_results(prediction, explanation)
         self.builder.add_feature_importance_plot(plot_path)
-        self.builder.add_input_parameters(parameters)
+        self.builder.add_input_parameters(parameters, form)
         return self.builder.get_report()
 
     def build_pdf_report(self, explanation, contribution_image_path, parameters, form, metadata, plots, report):

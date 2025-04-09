@@ -116,17 +116,35 @@ class FeatureService:
 
     def _generate_contributions_plot(self, contributions: dict, prediction: int) -> str:
         """Generate and save a plot for feature contributions."""
+        # Sort contributions by absolute importance
         sorted_contributions = sorted(contributions.items(), key=lambda x: abs(x[1]), reverse=True)
         features = [feature for feature, _ in sorted_contributions]
         importances = [importance for _, importance in sorted_contributions]
 
+        # Create the plot
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.barh(features, importances, color=["#E73C0D" if imp > 0 else "#0090A5" for imp in importances])
+        bars = ax.barh(features, importances, color=["#E73C0D" if imp > 0 else "#0090A5" for imp in importances])
         ax.invert_yaxis()
         ax.set_xlabel("Importance")
         ax.set_title(f"Feature Contributions (Prediction: {'Disease' if prediction == 1 else 'No Disease'})")
 
-        # Save plot
+        # Add annotations to bars
+        for bar, importance in zip(bars, importances):
+            ax.text(
+                bar.get_width() + (0.002 if importance > 0 else -0.002),
+                bar.get_y() + bar.get_height() / 2,
+                f"{importance:.2f}",
+                va="center",
+                ha="left" if importance > 0 else "right", 
+                fontsize=10,
+                color="black"
+            )
+
+        min_importance = min(importances)
+        max_importance = max(importances)
+        ax.set_xlim(min_importance * 1.2 if min_importance < 0 else 0, max_importance * 1.2 if max_importance > 0 else 0)
+
+        # Save the plot
         plot_dir = os.path.join("app/static", "contributions_plots")
         os.makedirs(plot_dir, exist_ok=True)
         plot_path = os.path.join(plot_dir, "contributions_plot.png")

@@ -157,12 +157,23 @@ def dashboard():
     contributions_image_path = session.get("contributions_image_path", None)
     prediction_values = session.get("prediction_values", None)
     contributions_explanation = session.get("contributions_explanation", None)
+    form = PredictionForm()
+
+    # Build the report using the ReportBuilder
+    builder = ReportBuilder()
+    director = ReportDirector(builder)
+    web_report = director.build_web_report(
+        parameters=prediction_values,
+        plot_path=contributions_image_path,
+        form=form
+    )
+
+    # Pass the generated sections to the template
     return render_template(
         "dashboard.html",
+        report=web_report.get_sections(),
+        explanation=contributions_explanation,
         session=session.get("user"),
-        contributions_image_path=contributions_image_path,
-        prediction_values=prediction_values,
-        contributions_explanation=contributions_explanation,
         pretty=json.dumps(session.get("user"), indent=4),
     )
 
@@ -174,26 +185,26 @@ def download_report():
     """Generate and download the prediction report as a PDF."""
     model_dao = app.model_dao
     model = session.get("model", None)
-    # Example data
+
     prediction = session.get("prediction_values", {}).get("prediction", 1)
     explanation = session.get("contributions_explanation", "No explanation available.")
     contribution_image_path = session.get("contributions_image_path", None)
-    print(contribution_image_path)
     parameters = session.get("prediction_values", {})
     metadata = model_dao.get_metrics(model)
     plots = model_dao.get_plots(model)
     report = model_dao.get_report(model)["report"]
     report = json.loads(report)
     form = PredictionForm()
-    # Build the report
+
+    # Build report
     builder = ReportBuilder()
     director = ReportDirector(builder)
     pdf_report = director.build_pdf_report(explanation, contribution_image_path, parameters, form, metadata, plots, report)
 
-    # Generate the PDF
+    # Generate PDF
     pdf = generate_pdf(pdf_report)
 
-    # Return the PDF as a response
+    # Return PDF as a response
     response = make_response(pdf)
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = "inline; filename=report.pdf"

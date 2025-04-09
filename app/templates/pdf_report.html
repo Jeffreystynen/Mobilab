@@ -39,11 +39,12 @@
         /* Add header and footer with the logo and page numbers */
         @page {
             margin: 20mm;
-        }
-
-        @page {
             @top-left {
-                content: url("{{ url_for('static', filename='img/mobilab.png') }}");
+                content: "";
+                background: url("file:///home/vagrant/application/app/static/img/mobilab.png") no-repeat;
+                background-size: contain;
+                width: 50px;
+                height: 50px;
             }
             @bottom-right {
                 content: "Page " counter(page);
