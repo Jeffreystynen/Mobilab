@@ -2,6 +2,8 @@ import logging
 from app.services.feature_service import FeatureService
 from app.services.api_client import APIClient
 import os
+from io import BytesIO
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +40,18 @@ class PredictionService:
             # Make prediction
             prediction_result = self._make_prediction(features, model_name)
 
-            # Process contributions
-            contributions_path, explanation = self.feature_service.process_contributions(
+            # Generate contributions plot and explanation
+            plot_buffer, explanation = self.feature_service.process_contributions(
                 prediction_result, list(features.keys())
             )
+
+            # Convert plot to Base64
+            plot_data = base64.b64encode(plot_buffer.getvalue()).decode("utf-8") if plot_buffer else None
 
             return {
                 "success": True,
                 "prediction": prediction_result["prediction"],
-                "contributions": prediction_result.get("contributions", {}),
-                "contributions_image_path": contributions_path,
+                "contributions_plot": plot_data,
                 "explanation_text": explanation,
                 "features": features,
             }

@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from app.dao.model_dao import ModelDAO
 from flask import current_app as app
+from io import BytesIO
 
 
 class FeatureService:
@@ -107,15 +108,15 @@ class FeatureService:
         adjusted_contributions = {feature: importance + bias_term for feature, importance in contributions.items()}
 
         # Generate plot
-        plot_path = self._generate_contributions_plot(adjusted_contributions, prediction)
+        plot_buffer = self._generate_contributions_plot(adjusted_contributions, prediction)
 
         # Generate explanation text
         explanation = self._generate_explanation_text(adjusted_contributions, bias_term, prediction, feature_names)
 
-        return plot_path, explanation
+        return plot_buffer, explanation
 
-    def _generate_contributions_plot(self, contributions: dict, prediction: int) -> str:
-        """Generate and save a plot for feature contributions."""
+    def _generate_contributions_plot(self, contributions: dict, prediction: int) -> BytesIO:
+        """Generate a plot for feature contributions and return it as a BytesIO object."""
         # Sort contributions by absolute importance
         sorted_contributions = sorted(contributions.items(), key=lambda x: abs(x[1]), reverse=True)
         features = [feature for feature, _ in sorted_contributions]
@@ -135,7 +136,7 @@ class FeatureService:
                 bar.get_y() + bar.get_height() / 2,
                 f"{importance:.2f}",
                 va="center",
-                ha="left" if importance > 0 else "right", 
+                ha="left" if importance > 0 else "right",
                 fontsize=10,
                 color="black"
             )
@@ -144,14 +145,13 @@ class FeatureService:
         max_importance = max(importances)
         ax.set_xlim(min_importance * 1.2 if min_importance < 0 else 0, max_importance * 1.2 if max_importance > 0 else 0)
 
-        # Save the plot
-        plot_dir = os.path.join("app/static", "contributions_plots")
-        os.makedirs(plot_dir, exist_ok=True)
-        plot_path = os.path.join(plot_dir, "contributions_plot.png")
-        plt.savefig(plot_path, bbox_inches="tight")
+        # Save the plot to a BytesIO buffer
+        buffer = BytesIO()
+        plt.savefig(buffer, format="png", bbox_inches="tight")
         plt.close(fig)
+        buffer.seek(0)  # Reset buffer pointer to the beginning
 
-        return plot_path
+        return buffer
 
     def _generate_explanation_text(self, contributions: dict, bias_term: float, prediction: int, feature_names: list) -> str:
         """Generate textual explanation for contributions."""

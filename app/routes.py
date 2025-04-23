@@ -133,7 +133,7 @@ def input_params():
                     session,
                     result,
                     result["features"],
-                    result["contributions_image_path"],
+                    result["contributions_plot"],
                     result["explanation_text"],
                     selected_model
                 )
