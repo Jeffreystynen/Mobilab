@@ -1,6 +1,7 @@
 import logging
 from app.services.feature_service import FeatureService
 from app.services.api_client import APIClient
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +58,9 @@ class PredictionService:
     def _make_prediction(self, features: dict, model_name: str) -> dict:
         """Make a prediction using the external API."""
         try:
+            api_url = os.getenv("API_URL")
             response = self.api_client.post(
-                "http://127.0.0.1:5001/predict", json={"features": features, "model": model_name}
+                api_url, json={"features": features, "model": model_name}
             )
             if "error" in response:
                 raise ValueError(response["error"])

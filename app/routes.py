@@ -165,7 +165,9 @@ def dashboard():
     prediction_values = session.get("prediction_values", None)
     contributions_explanation = session.get("contributions_explanation", None)
     form = PredictionForm()
-
+    if not prediction_values:
+        flash("No prediction values available. Please make a prediction first.", "warning")
+        return redirect(url_for("main.input_params"))
     # Build the report using the ReportBuilder
     builder = ReportBuilder()
     director = ReportDirector(builder)
@@ -235,6 +237,7 @@ def models():
         logger.error(f"Error fetching models: {str(e)}", exc_info=True)
         flash("Failed to load models. Please try again later.", "danger")
         models = []
+        return redirect(url_for("main.input_params"))
 
     selected_model = request.form.get("model") if request.method == "POST" else None
     selected_model = selected_model or (models[0] if models else "No models available")
