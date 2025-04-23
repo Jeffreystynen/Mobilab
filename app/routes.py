@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, make_response, send_file
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
@@ -21,6 +21,8 @@ from flask import current_app as app
 from app.helpers.report_builder import ReportBuilder, ReportDirector
 from app.helpers.pdf_generator import generate_pdf
 from app.error_handlers import flash_form_errors
+from io import BytesIO
+import base64
 
 
 main = Blueprint('main', __name__)
@@ -165,9 +167,11 @@ def dashboard():
     prediction_values = session.get("prediction_values", None)
     contributions_explanation = session.get("contributions_explanation", None)
     form = PredictionForm()
+
     if not prediction_values:
         flash("No prediction values available. Please make a prediction first.", "warning")
         return redirect(url_for("main.input_params"))
+
     # Build the report using the ReportBuilder
     builder = ReportBuilder()
     director = ReportDirector(builder)
@@ -213,11 +217,12 @@ def download_report():
     # Generate PDF
     pdf = generate_pdf(pdf_report)
 
-    # Return PDF as a response
-    response = make_response(pdf)
-    response.headers["Content-Type"] = "application/pdf"
-    response.headers["Content-Disposition"] = "inline; filename=report.pdf"
-    return response
+    return send_file(
+        BytesIO(pdf),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="report.pdf"
+    )
 
 
 @main.route("/models", methods=["GET", "POST"])
