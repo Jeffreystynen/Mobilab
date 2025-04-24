@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, make_response, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, make_response, send_file, g
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
@@ -38,7 +38,6 @@ auth0 = oauth.register(
     client_kwargs={"scope": "openid profile email"},
     server_metadata_url=f'https://{env.get("AUTH0_DOMAIN")}/.well-known/openid-configuration'
 )
-
 
 @main.route('/')
 def index():
@@ -127,13 +126,14 @@ def input_params():
             # Process prediction request
             result = prediction_service.process_prediction_request(form, selected_model)
             
+            session["contributions"] = result["contributions"]
+
             if result["success"]:
                 # Store results in session
                 store_prediction_results(
                     session,
                     result,
                     result["features"],
-                    result["contributions_plot"],
                     result["explanation_text"],
                     selected_model
                 )
@@ -163,7 +163,25 @@ def input_params():
 @limiter.limit("20 per minute")
 def dashboard():
     """Serves LIME plot and parameters used to make predictions from the last prediction."""
-    contributions_image_path = session.get("contributions_image_path", None)
+    feature_service = app.feature_service
+    contributions = session.get("contributions", None)
+    prediction = session.get("prediction_values", {}).get("prediction", 0)
+
+    if not contributions:
+        flash("No contributions available. Please make a prediction first.", "warning")
+        return redirect(url_for("main.input_params"))
+
+    try:
+        # Dynamically generate the plot using the contributions data
+        plot_buffer = feature_service._generate_contributions_plot(contributions, prediction)
+        if not plot_buffer:
+            raise ValueError("Plot buffer is None. Plot generation failed.")
+        plot_data = base64.b64encode(plot_buffer.getvalue()).decode("utf-8")
+    except Exception as e:
+        logger.error(f"Error generating plot: {str(e)}", exc_info=True)
+        flash("Failed to generate the plot. Please try again.", "danger")
+        return redirect(url_for("main.input_params"))
+
     prediction_values = session.get("prediction_values", None)
     contributions_explanation = session.get("contributions_explanation", None)
     form = PredictionForm()
@@ -177,15 +195,15 @@ def dashboard():
     director = ReportDirector(builder)
     web_report = director.build_web_report(
         parameters=prediction_values,
-        plot_path=contributions_image_path,
+        plot_path=f"data:image/png;base64,{plot_data}",
         form=form
     )
 
-    # Pass the generated sections to the template
     return render_template(
         "dashboard.html",
         report=web_report.get_sections(),
         explanation=contributions_explanation,
+        # plot_url=f"data:image/png;base64,{plot_data}",
         session=session.get("user"),
         pretty=json.dumps(session.get("user"), indent=4),
     )

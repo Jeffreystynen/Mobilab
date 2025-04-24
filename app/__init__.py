@@ -33,6 +33,7 @@ def create_app():
     # Load configuration
     app.config.from_object(Config)
 
+
     # Initialize extensions
     csrf.init_app(app)
     oauth.init_app(app)

@@ -40,6 +40,8 @@ class PredictionService:
             # Make prediction
             prediction_result = self._make_prediction(features, model_name)
 
+            contributions = prediction_result.get("contributions", {})
+           
             # Generate contributions plot and explanation
             plot_buffer, explanation = self.feature_service.process_contributions(
                 prediction_result, list(features.keys())
@@ -52,6 +54,7 @@ class PredictionService:
                 "success": True,
                 "prediction": prediction_result["prediction"],
                 "contributions_plot": plot_data,
+                "contributions" : contributions,
                 "explanation_text": explanation,
                 "features": features,
             }

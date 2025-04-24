@@ -37,6 +37,14 @@ class ReportBuilder:
         """Add feature importance plot to the report."""
         if not plot_path:
             content = "<p>No Contributions plot available.</p>"
+        elif plot_path.startswith("data:image/png;base64,"):  # Check if it's a Base64 string
+            content = f"""
+            <div class="row g-0 d-flex align-items-center">
+                <div class="col-12">
+                    <img src="{plot_path}" class="img-fluid" alt="Contributions Plot" style="width: 100%; height: auto;">
+                </div>
+            </div>
+            """
         else:
             # Convert the relative path to an absolute URL
             absolute_url = url_for('static', filename=plot_path.split('static/')[-1], _external=True)
