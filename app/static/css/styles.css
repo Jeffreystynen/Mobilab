@@ -62,7 +62,7 @@ nav {
 
 /* Hover effect for links */
 .nav-link:hover {
-    color: #E73C0D; /* Red-Orange accent */
+    color: #E73C0D;
     background-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -76,6 +76,24 @@ nav {
 .nav-link i {
     font-size: 1.5rem;
     margin-right: 10px;
+}
+
+/* Change text color of tabs when not hovered */
+.nav-tabs .nav-link {
+    color: black;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #E73C0D;
+    background-color: transparent;
+    text-decoration: none;
+}
+
+/* Active tab styling */
+.nav-tabs .nav-link.active {
+    color: #E73C0D;
+    background-color: transparent;
+    border: none;
 }
 
 /* Main Content */
