@@ -26,12 +26,12 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('main.dashboard') }}">
-                                <i class="fas fa-chart-line"></i> Dashboard
+                                <i class="fas fa-chart-line"></i> Personalised Treatment
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('main.models') }}">
-                                <i class="fas fa-brain"></i> Models
+                                <i class="fas fa-heartbeat"></i> Models
                             </a>
                         </li>
                         {% if 'admin' in user_roles %}
@@ -47,7 +47,7 @@
                     <!-- Logout button pushed to bottom -->
                     <ul class="nav flex-column mt-auto mb-4">
                         <li>
-                            <p class="text-muted small font-italic">Jeffrey Stynen</p>
+                            <p class="text-muted small font-italic">&copy; Jeffrey Stynen</p>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link logout-link" href="{{ url_for('main.logout') }}">
