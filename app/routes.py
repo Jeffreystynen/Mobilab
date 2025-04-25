@@ -216,6 +216,14 @@ def download_report():
     feature_service = app.feature_service
     contributions = session.get("contributions", None)
 
+    prediction = session.get("prediction_values", {}).get("prediction", 1)
+    explanation = session.get("contributions_explanation", "No explanation available.")
+    parameters = session.get("prediction_values", {})
+    metadata = model_dao.get_metrics(model)
+    plots = model_dao.get_plots(model)
+    report = model_dao.get_report(model)["report"]
+    report = json.loads(report)
+
     try:
         # Dynamically generate the plot using the contributions data
         plot_buffer = feature_service._generate_contributions_plot(contributions, prediction)
@@ -227,14 +235,6 @@ def download_report():
         flash("Failed to generate the plot. Please try again.", "danger")
         return redirect(url_for("main.input_params"))
 
-    prediction = session.get("prediction_values", {}).get("prediction", 1)
-    explanation = session.get("contributions_explanation", "No explanation available.")
-    # contribution_image_path = session.get("contributions_image_path", None)
-    parameters = session.get("prediction_values", {})
-    metadata = model_dao.get_metrics(model)
-    plots = model_dao.get_plots(model)
-    report = model_dao.get_report(model)["report"]
-    report = json.loads(report)
     form = PredictionForm()
 
     # Build report
