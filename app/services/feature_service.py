@@ -67,7 +67,10 @@ class FeatureService:
         Raises:
             ValueError: If required features are missing or invalid.
         """
-        feature_mapping = self.model_dao.get_feature_mapping(model_name)
+        try:
+            feature_mapping = self.model_dao.get_feature_mapping(model_name)
+        except Exception as e:
+            raise ValueError(f"Error fetching feature mapping for model '{model_name}': {e}")
         if not feature_mapping or len(feature_mapping) == 0:
             raise ValueError(f"No feature mapping found for model: {model_name}")
 
@@ -77,8 +80,6 @@ class FeatureService:
 
         # Ensure all required features are present
         required_features = set(parsed_mapping.values())
-        print(f"required_features: {required_features}")
-        print(f"input_features: {input_features}")
         missing_features = required_features - set(input_features.keys())
         if missing_features:
             raise ValueError(f"Missing required features: {missing_features}")

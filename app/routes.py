@@ -109,43 +109,41 @@ def input_params():
         models = model_dao.get_models()
         prediction_service = app.prediction_service
         feature_service = app.feature_service
+
+        # Handle form submission
+        form = PredictionForm()
+        if request.method == "POST" and form.validate_on_submit():
+            try:
+                # Get selected model
+                selected_model = request.form.get("model") or (models[0] if models else None)
+                if not selected_model:
+                    raise ValueError("No model available.")
+
+                # Process prediction request
+                result = prediction_service.process_prediction_request(form, selected_model)
+
+                if result["success"]:
+                    # Store results in session
+                    store_prediction_results(
+                        session,
+                        result,
+                        result["features"],
+                        result["explanation_text"],
+                        selected_model
+                    )
+                    prediction = result["prediction"]
+                else:
+                    flash(result["error"], "input_params")
+                    
+            except ValueError as e:
+                logger.error(f"Error processing prediction: {str(e)}", exc_info=True)
+                flash(str(e), "input_params")
+        else:
+            flash_form_errors(form)
+
     except Exception as e:
-        logger.error(f"Error fetching models: {str(e)}", exc_info=True)
-        flash("Failed to load models. Please try again later.", "danger")
-        models = []
-
-    # Handle form submission
-    form = PredictionForm()
-    if request.method == "POST" and form.validate_on_submit():
-        try:
-            # Get selected model
-            selected_model = request.form.get("model") or (models[0] if models else None)
-            if not selected_model:
-                raise ValueError("No model available.")
-
-            # Process prediction request
-            result = prediction_service.process_prediction_request(form, selected_model)
-            
-            session["contributions"] = result["contributions"]
-
-            if result["success"]:
-                # Store results in session
-                store_prediction_results(
-                    session,
-                    result,
-                    result["features"],
-                    result["explanation_text"],
-                    selected_model
-                )
-                prediction = result["prediction"]
-            else:
-                flash(result["error"], "input_params")
-                
-        except ValueError as e:
-            logger.error(f"Error processing prediction: {str(e)}", exc_info=True)
-            flash(str(e), "input_params")
-    else:
-        flash_form_errors(form)
+        logger.error(f"Unexpected error during prediction: {e}", exc_info=True)
+        flash("An unexpected error occurred while processing the prediction. Please try again later.", "danger")
 
     return render_template(
         "input_params.html",
@@ -203,7 +201,6 @@ def dashboard():
         "dashboard.html",
         report=web_report.get_sections(),
         explanation=contributions_explanation,
-        # plot_url=f"data:image/png;base64,{plot_data}",
         session=session.get("user"),
         pretty=json.dumps(session.get("user"), indent=4),
     )
@@ -216,10 +213,23 @@ def download_report():
     """Generate and download the prediction report as a PDF."""
     model_dao = app.model_dao
     model = session.get("model", None)
+    feature_service = app.feature_service
+    contributions = session.get("contributions", None)
+
+    try:
+        # Dynamically generate the plot using the contributions data
+        plot_buffer = feature_service._generate_contributions_plot(contributions, prediction)
+        if not plot_buffer:
+            raise ValueError("Plot buffer is None. Plot generation failed.")
+        plot_data = base64.b64encode(plot_buffer.getvalue()).decode("utf-8")
+    except Exception as e:
+        logger.error(f"Error generating plot: {str(e)}", exc_info=True)
+        flash("Failed to generate the plot. Please try again.", "danger")
+        return redirect(url_for("main.input_params"))
 
     prediction = session.get("prediction_values", {}).get("prediction", 1)
     explanation = session.get("contributions_explanation", "No explanation available.")
-    contribution_image_path = session.get("contributions_image_path", None)
+    # contribution_image_path = session.get("contributions_image_path", None)
     parameters = session.get("prediction_values", {})
     metadata = model_dao.get_metrics(model)
     plots = model_dao.get_plots(model)
@@ -230,7 +240,7 @@ def download_report():
     # Build report
     builder = ReportBuilder()
     director = ReportDirector(builder)
-    pdf_report = director.build_pdf_report(explanation, contribution_image_path, parameters, form, metadata, plots, report)
+    pdf_report = director.build_pdf_report(explanation=explanation, contribution_image_path=f"data:image/png;base64,{plot_data}", parameters=parameters, form=form, metadata=metadata, plots=plots, report=report)
 
     # Generate PDF
     pdf = generate_pdf(pdf_report)
@@ -256,6 +266,9 @@ def models():
 
     try:
         models = model_dao.get_models()
+        if not models:
+            flash("No models are available.", "warning")
+            return redirect(url_for("main.input_params"))
     except Exception as e:
         logger.error(f"Error fetching models: {str(e)}", exc_info=True)
         flash("Failed to load models. Please try again later.", "danger")
